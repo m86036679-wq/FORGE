@@ -831,9 +831,9 @@ function renderFood(){
     <div class="bar" style="height:8px;margin-top:12px"><i style="width:${Math.min(100,eaten/budget*100)}%;background:${left<0?'var(--red)':'linear-gradient(90deg,#FF7A2F,#FFB547)'}"></i></div>
     ${miniMacros(d,T)}
   </div>
-  <div class="actions2" style="${AI_OK?'':'grid-template-columns:1fr'}">
+  <div class="actions2">
     <button class="btn orange" data-act="food-add">${I.plus} Essen hinzufügen</button>
-    ${AI_OK?`<button class="btn ghost" style="padding:0" data-act="food-add" data-tab="ai" aria-label="Mit KI schätzen">${I.spark}</button>`:''}
+    <button class="btn ghost" style="padding:0" data-act="food-add" data-tab="ai" aria-label="Mit KI schätzen">${I.spark}</button>
   </div>
   <div class="card" style="margin-top:12px;padding:4px 16px">
   ${MEALS.map(([mk,mn,ic])=>{const items=d.food.filter(f=>f.meal===mk); const mkK=sum(items,entryK); return `<div class="mealsec">
@@ -865,10 +865,10 @@ function drawFoodSheet(){
       <button class="btn orange block" data-act="fs-add">${I.plus} Zu ${MEALS.find(m=>m[0]===FS.meal)[1]} hinzufügen</button>
       ${f.custom?`<button class="btn danger block" style="margin-top:8px" data-act="fs-delcustom">Eigenes Lebensmittel löschen</button>`:''}`;
     updNut(); return; }
-  const seg=`<div class="seg" style="${AI_OK?'':'grid-template-columns:1fr 1fr'}"><button class="${FS.tab==='db'?'on':''}" data-act="fs-tab" data-t="db">Datenbank</button>${AI_OK?`<button class="${FS.tab==='ai'?'on':''}" data-act="fs-tab" data-t="ai">✦ KI</button>`:''}<button class="${FS.tab==='own'?'on':''}" data-act="fs-tab" data-t="own">Eigenes</button></div>`;
+  const seg=`<div class="seg"><button class="${FS.tab==='db'?'on':''}" data-act="fs-tab" data-t="db">Datenbank</button><button class="${FS.tab==='ai'?'on':''}" data-act="fs-tab" data-t="ai">✦ KI</button><button class="${FS.tab==='own'?'on':''}" data-act="fs-tab" data-t="own">Eigenes</button></div>`;
   let body='';
   if(FS.tab==='db'){ body=`<div class="grid2" style="margin-bottom:10px"><button class="btn ghost sm" style="height:42px" data-act="shake">🥤 Shake mixen</button><button class="btn ghost sm" style="height:42px" data-act="fs-qset" data-q="protein">💪 Protein-Produkte</button></div><div class="search">${I.search}<input class="inp" id="fs-q" placeholder="z. B. Haferflocken, Döner, Skyr …" value="${esc(FS.q)}" data-in="fs-q" autocomplete="off"></div><div class="foodlist list" id="fs-list" style="margin-top:6px">${foodListHtml()}</div>`; }
-  else if(FS.tab==='ai'){ body=aiHtml(); }
+  else if(FS.tab==='ai'){ body=AI_OK?aiHtml():aiSetupHtml(); }
   else { body=`<div class="field"><label>Name</label><input class="inp" id="own-n" placeholder="z. B. Omas Gulasch"></div>
     <div class="grid2"><div class="field"><label>kcal je 100 g</label><input class="inp" id="own-k" type="number" inputmode="decimal"></div><div class="field"><label>Portion (g)</label><input class="inp" id="own-pg" type="number" inputmode="decimal" placeholder="100"></div></div>
     <div class="grid3"><div class="field"><label>Protein</label><input class="inp" id="own-p" type="number" inputmode="decimal" placeholder="g/100 g"></div><div class="field"><label>Kohlenh.</label><input class="inp" id="own-c" type="number" inputmode="decimal" placeholder="g/100 g"></div><div class="field"><label>Fett</label><input class="inp" id="own-f" type="number" inputmode="decimal" placeholder="g/100 g"></div></div>
@@ -1412,6 +1412,11 @@ document.addEventListener('input',e=>{ const el=e.target.closest('[data-in]'); i
 document.addEventListener('change',e=>{ const el=e.target.closest('select[data-in]'); if(el&&IN[el.dataset.in]) IN[el.dataset.in](el,e); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('#sheet-root').classList.contains('open')) closeSheet(); });
 
+function aiSetupHtml(){ return `<div class="info" style="line-height:1.6"><b>KI einmalig einrichten (kostenlos)</b><br>1. Öffne <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--lime)">console.groq.com/keys</a> und melde dich an (z. B. mit Google).<br>2. Tippe auf <b>„Create API Key“</b>, Name z. B. forge.<br>3. Kopiere den Schlüssel (beginnt mit <b>gsk_</b>) und füge ihn hier ein.</div>
+  <div class="field" style="margin-top:12px"><label>Dein KI-Schlüssel</label><input class="inp" id="ai-key" type="password" autocomplete="off" placeholder="gsk_…"></div>
+  <button class="btn orange block" data-act="ai-key-save">${I.spark} Speichern & KI aktivieren</button>
+  <p class="hint" style="margin-top:10px">Der Schlüssel bleibt nur auf diesem Gerät. Danach kannst du jedes Essen beschreiben oder fotografieren.</p>`; }
+Object.assign(A,{'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
 /* ================= START ================= */
 (function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud();
   try{ if('serviceWorker' in navigator && window.top===window && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} })();
