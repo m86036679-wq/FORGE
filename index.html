@@ -901,9 +901,7 @@ Antworte ausschließlich mit JSON in genau diesem Format:
 {"items":[{"name":"kurzer deutscher Name","grams":Zahl,"kcal":Zahl,"protein":Zahl,"carbs":Zahl,"fat":Zahl}]}`;
     let val;
     if(sample){ try{ val=await sample.json(prompt,{modelTier:'quick'}); }catch(e){ if(e&&e.code) throw e; const r=await sample(prompt,{modelTier:'quick'}); val=JSON.parse((r.text.match(/\{[\s\S]*\}/)||['{}'])[0]); } }
-    else { const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+gk},body:JSON.stringify({model:'llama-3.3-70b-versatile',temperature:0.2,response_format:{type:'json_object'},messages:[{role:'user',content:prompt}]})});
-      if(res.status===401) throw {code:'badkey'}; if(res.status===429) throw {code:'rate_limited'}; if(!res.ok) throw {code:'http'};
-      const j=await res.json(); val=JSON.parse(j.choices[0].message.content); }
+    else { val=await groqJSON(prompt,false); }
     const items=(val&&val.items||[]).filter(x=>x&&x.name&&+x.grams>0).map(x=>({name:String(x.name).slice(0,60),grams:+x.grams,kcal:+x.kcal||0,protein:+x.protein||0,carbs:+x.carbs||0,fat:+x.fat||0,on:true}));
     if(!items.length) throw {code:'empty'};
     items.forEach(x=>{x.base={g:x.grams,k:x.kcal,p:x.protein,c:x.carbs,f:x.fat}});
@@ -1059,8 +1057,7 @@ Werte gelten für die geschätzte Menge (nicht je 100 g). Antworte ausschließli
     if(SAMPLE){ let ok=true; try{ ok=SAMPLE.limits?!!(await SAMPLE.limits()).images:true; }catch(e){}
       if(!ok) throw {code:'noimg'};
       val=await SAMPLE.json(prompt,{images:[dataUrlToBlob(FS.aiImg)],modelTier:'default'}); }
-    else if(groqKey()){ const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey()},body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',temperature:0.2,response_format:{type:'json_object'},messages:[{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:FS.aiImg}}]}]})});
-      if(res.status===401) throw {code:'badkey'}; if(res.status===429) throw {code:'rate_limited'}; if(!res.ok) throw {code:'http'}; const j=await res.json(); val=JSON.parse(j.choices[0].message.content); }
+    else if(groqKey()){ val=await groqJSON([{type:'text',text:prompt},{type:'image_url',image_url:{url:FS.aiImg}}],true); }
     else throw {code:'not_granted'};
     const items=(val&&val.items||[]).filter(x=>x&&x.name&&+x.grams>0).map(x=>({name:String(x.name).slice(0,60),grams:+x.grams,kcal:+x.kcal||0,protein:+x.protein||0,carbs:+x.carbs||0,fat:+x.fat||0,on:true}));
     if(!items.length) throw {code:'empty'}; items.forEach(x=>{x.base={g:x.grams,k:x.kcal,p:x.protein,c:x.carbs,f:x.fat}}); FS.ai={items};
@@ -1412,6 +1409,19 @@ document.addEventListener('input',e=>{ const el=e.target.closest('[data-in]'); i
 document.addEventListener('change',e=>{ const el=e.target.closest('select[data-in]'); if(el&&IN[el.dataset.in]) IN[el.dataset.in](el,e); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('#sheet-root').classList.contains('open')) closeSheet(); });
 
+async function groqJSON(content,vision){
+  const models=vision?['qwen/qwen3.8-27b','qwen/qwen3.6-27b','meta-llama/llama-4-scout-17b-16e-instruct']:['llama-3.3-70b-versatile','openai/gpt-oss-120b','qwen/qwen3.8-27b'];
+  let last={code:'http'};
+  for(const m of models){
+    let res; try{ res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey()},body:JSON.stringify({model:m,temperature:0.2,response_format:{type:'json_object'},messages:[{role:'user',content}]})}); }catch(e){ throw {code:'net'}; }
+    if(res.status===401) throw {code:'badkey'}; if(res.status===429) throw {code:'rate_limited'};
+    if(!res.ok){ last={code:'http'}; continue; }
+    const j=await res.json(); const txt=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'';
+    try{ return JSON.parse(txt); }catch(e){ const mm=txt.replace(/<think>[\s\S]*?<\/think>/g,'').match(/\{[\s\S]*\}/); if(mm){ try{ return JSON.parse(mm[0]); }catch(_){} } }
+  }
+  throw last;
+}
+document.addEventListener('touchend',e=>{ const t=e.target; if(t&&t.matches&&t.matches('#sheet-root textarea,#sheet-root input:not([type=file])')&&document.activeElement!==t){ t.focus(); } },{passive:true});
 function aiSetupHtml(){ return `<div class="info" style="line-height:1.6"><b>KI einmalig einrichten (kostenlos)</b><br>1. Öffne <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--lime)">console.groq.com/keys</a> und melde dich an (z. B. mit Google).<br>2. Tippe auf <b>„Create API Key“</b>, Name z. B. forge.<br>3. Kopiere den Schlüssel (beginnt mit <b>gsk_</b>) und füge ihn hier ein.</div>
   <div class="field" style="margin-top:12px"><label>Dein KI-Schlüssel</label><input class="inp" id="ai-key" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="gsk_…"></div>
   <button class="btn ghost block" style="margin:-4px 0 10px" data-act="ai-paste">📋 Aus Zwischenablage einfügen</button><div></div>
