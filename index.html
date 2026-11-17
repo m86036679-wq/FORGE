@@ -27,7 +27,7 @@
   --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;touch-action:manipulation;overscroll-behavior-y:none;background:var(--bg);color:var(--tx);font-family:var(--body);font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--body);font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased}
 body{min-height:100vh;background:
   radial-gradient(900px 500px at 85% -10%,rgba(200,255,46,.07),transparent 60%),
   radial-gradient(700px 500px at -10% 30%,rgba(255,122,47,.05),transparent 60%),var(--bg);background-attachment:fixed}
@@ -240,7 +240,7 @@ textarea.inp{height:auto;min-height:84px;padding:12px;resize:vertical;line-heigh
 .tab[data-v=food].on{background:var(--orange)}
 
 /* Sheet */
-#sheet-root{position:fixed;inset:0;z-index:60;display:none}
+#sheet-root{position:fixed;inset:0;z-index:60;display:none}button,.chip,.tab,a{touch-action:manipulation}
 #sheet-root.open{display:block}
 .scrim{position:absolute;inset:0;background:rgba(0,0,0,.6);opacity:0;transition:opacity .25s}
 #sheet-root.show .scrim{opacity:1}
@@ -917,8 +917,8 @@ Antworte ausschließlich mit JSON in genau diesem Format:
 }
 
 /* ================= SHEETS ================= */
-function openSheet(html){ const root=$('#sheet-root'); root.innerHTML=`<div class="scrim" data-act="close-sheet"></div><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`; root.classList.add('open'); requestAnimationFrame(()=>requestAnimationFrame(()=>root.classList.add('show'))); clearTimeout(openSheet.t); openSheet.t=setTimeout(()=>root.classList.add('ready'),360); document.body.style.overflow='hidden'; }
-function closeSheet(){ const root=$('#sheet-root'); clearTimeout(openSheet.t); root.classList.remove('ready'); void root.offsetWidth; root.classList.remove('show'); document.body.style.overflow=''; setTimeout(()=>{ if(!root.classList.contains('show')){root.classList.remove('open'); root.innerHTML=''} },300); FS=null; }
+function openSheet(html){ const root=$('#sheet-root'); root.innerHTML=`<div class="scrim" data-act="close-sheet"></div><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`; root.classList.add('open'); requestAnimationFrame(()=>requestAnimationFrame(()=>root.classList.add('show'))); clearTimeout(openSheet.t); openSheet.t=setTimeout(()=>root.classList.add('ready'),360);  }
+function closeSheet(){ const root=$('#sheet-root'); clearTimeout(openSheet.t); root.classList.remove('ready'); void root.offsetWidth; root.classList.remove('show');  setTimeout(()=>{ if(!root.classList.contains('show')){root.classList.remove('open'); root.innerHTML=''} },300); FS=null; }
 function confirmSheet(title,text,okLabel,onOk,danger=true){ openSheet(`<div class="sheet-h"><h2>${title}</h2></div><p class="muted" style="margin:0 0 18px">${text}</p><div class="grid2"><button class="btn ghost" data-act="close-sheet">Abbrechen</button><button class="btn ${danger?'danger':'lime'}" id="cf-ok">${okLabel}</button></div>`); $('#cf-ok').onclick=()=>{closeSheet();onOk()}; }
 
 let PICK={q:'',g:'Alle'};
