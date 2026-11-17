@@ -244,8 +244,8 @@ textarea.inp{height:auto;min-height:84px;padding:12px;resize:vertical;line-heigh
 #sheet-root.open{display:block}
 .scrim{position:absolute;inset:0;background:rgba(0,0,0,.6);opacity:0;transition:opacity .25s}
 #sheet-root.show .scrim{opacity:1}
-.sheet{position:absolute;left:50%;bottom:0;transform:translate(-50%,100%);width:min(560px,100%);max-height:92vh;overflow-y:auto;background:var(--s1);border:1px solid var(--line2);border-bottom:0;border-radius:26px 26px 0 0;padding:8px 18px calc(22px + var(--safe-b));transition:transform .32s cubic-bezier(.2,.8,.2,1);overscroll-behavior:contain}
-#sheet-root.show .sheet{transform:translate(-50%,0)}
+.sheet{position:absolute;left:0;right:0;margin:0 auto;bottom:0;transform:translateY(100%);width:min(560px,100%);max-height:92vh;overflow-y:auto;background:var(--s1);border:1px solid var(--line2);border-bottom:0;border-radius:26px 26px 0 0;padding:8px 18px calc(22px + var(--safe-b));transition:transform .32s cubic-bezier(.2,.8,.2,1);overscroll-behavior:contain}
+#sheet-root.show .sheet{transform:translateY(0)}#sheet-root.ready .sheet{transform:none;transition:none}input,textarea,select{-webkit-user-select:text;user-select:text}
 .grab{width:42px;height:5px;border-radius:5px;background:var(--s3);margin:4px auto 12px}
 .sheet h2{font-family:var(--display);font-style:italic;font-weight:800;text-transform:uppercase;font-size:28px;margin:0;letter-spacing:.4px;line-height:1}
 .sheet-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
@@ -919,8 +919,8 @@ Antworte ausschließlich mit JSON in genau diesem Format:
 }
 
 /* ================= SHEETS ================= */
-function openSheet(html){ const root=$('#sheet-root'); root.innerHTML=`<div class="scrim" data-act="close-sheet"></div><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`; root.classList.add('open'); requestAnimationFrame(()=>requestAnimationFrame(()=>root.classList.add('show'))); document.body.style.overflow='hidden'; }
-function closeSheet(){ const root=$('#sheet-root'); root.classList.remove('show'); document.body.style.overflow=''; setTimeout(()=>{ if(!root.classList.contains('show')){root.classList.remove('open'); root.innerHTML=''} },300); FS=null; }
+function openSheet(html){ const root=$('#sheet-root'); root.innerHTML=`<div class="scrim" data-act="close-sheet"></div><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`; root.classList.add('open'); requestAnimationFrame(()=>requestAnimationFrame(()=>root.classList.add('show'))); clearTimeout(openSheet.t); openSheet.t=setTimeout(()=>root.classList.add('ready'),360); document.body.style.overflow='hidden'; }
+function closeSheet(){ const root=$('#sheet-root'); clearTimeout(openSheet.t); root.classList.remove('ready'); void root.offsetWidth; root.classList.remove('show'); document.body.style.overflow=''; setTimeout(()=>{ if(!root.classList.contains('show')){root.classList.remove('open'); root.innerHTML=''} },300); FS=null; }
 function confirmSheet(title,text,okLabel,onOk,danger=true){ openSheet(`<div class="sheet-h"><h2>${title}</h2></div><p class="muted" style="margin:0 0 18px">${text}</p><div class="grid2"><button class="btn ghost" data-act="close-sheet">Abbrechen</button><button class="btn ${danger?'danger':'lime'}" id="cf-ok">${okLabel}</button></div>`); $('#cf-ok').onclick=()=>{closeSheet();onOk()}; }
 
 let PICK={q:'',g:'Alle'};
