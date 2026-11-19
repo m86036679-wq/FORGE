@@ -734,7 +734,7 @@ function renderHome(){
 let CALC={eid:'bench',kg:60,sets:3,reps:10,min:30,lvl:1,sec:60};
 let ticker=null;
 function startTicker(){ clearInterval(ticker); ticker=setInterval(()=>{ const el=$('#wtimer'); if(el&&S.active) el.textContent=mmss((Date.now()-S.active.start)/1000); },1000); }
-function exOptions(sel){ return GROUPS.map(g=>`<optgroup label="${g}">${Object.values(EX).filter(e=>e.g===g).map(e=>`<option value="${e.id}" ${e.id===sel?'selected':''}>${esc(e.n)}</option>`).join('')}</optgroup>`).join(''); }
+function exOptions(sel){ syncCex(); return allGroups().map(g=>`<optgroup label="${g}">${Object.values(EX).filter(e=>e.g===g).map(e=>`<option value="${e.id}" ${e.id===sel?'selected':''}>${esc(e.n)}</option>`).join('')}</optgroup>`).join(''); }
 function calcResult(){ const ex=EX[CALC.eid]; let k;
   if(ex.t==='cardio') k=setKcal(ex,{min:CALC.min,lvl:CALC.lvl});
   else if(ex.t==='time') k=setKcal(ex,{sec:CALC.sec})*CALC.sets;
@@ -758,6 +758,7 @@ function renderGym(){
       <button class="btn ${S.plan?'ghost':'lime'} block" style="margin-top:12px" data-act="w-start">${I.plus} Freies Training</button>
       <div class="tpl" style="margin-top:10px">${tpls.map(t=>`<button data-act="w-start" data-tpl="${t.id}"><b>${esc(t.n)}</b><small>${t.ex.length} Übungen</small></button>`).join('')}</div>
     </div>
+    ${cexCard()}
     <div class="stats3" style="margin-top:12px">
       <div class="stat"><div class="v num">${ws.length}</div><small>Trainings</small></div>
       <div class="stat"><div class="v num" style="color:var(--lime)">${fmt(sum(ws,w=>w.kcal))}</div><small>kcal Woche</small></div>
@@ -826,7 +827,7 @@ function updateActive(){
   A.ex.forEach((e,i)=>{ const ek=exKcal(e); k+=ek; v+=exVol(e); n+=e.sets.filter(s=>s.done).length; const el=$('#exk-'+i); if(el) el.innerHTML=fmt(ek)+'<span> kcal</span>'; });
   const set=(id,t)=>{const el=$(id); if(el) el.textContent=t}; set('#wkcal',fmt(k)); set('#wvol',fmt(v)); set('#wsets',n);
 }
-function newSets(eid,target){ const ex=EX[eid]; if(ex.t==='cardio') return [{min:null,lvl:1,done:false}]; const prev=prevSets(eid); const c=target?target.sets:prev?Math.max(1,Math.min(prev.length,6)):3; return [...Array(c)].map(()=>({kg:null,reps:null,sec:null,done:false})); }
+function newSets(eid,target){ const ex=EX[eid]; if(ex.t==='cardio') return [{min:null,lvl:1,done:false}]; const prev=prevSets(eid); if(ex.dsets&&!prev&&!target) return [...Array(ex.dsets)].map(()=>({kg:ex.dkg||null,reps:ex.dreps||null,sec:null,done:false})); const c=target?target.sets:prev?Math.max(1,Math.min(prev.length,6)):3; return [...Array(c)].map(()=>({kg:null,reps:null,sec:null,done:false})); }
 function findTpl(id){ return [...BASE_TPL,...S.templates,...(S.plan?S.plan.days:[])].find(t=>t.id===id); }
 function startWorkout(tplId){
   if(S.active){ toast('Es läuft schon ein Training'); closeSheet(); go('gym'); return; }
@@ -949,19 +950,26 @@ function confirmSheet(title,text,okLabel,onOk,danger=true){ openSheet(`<div clas
 let PICK={q:'',g:'Alle'};
 function openExPicker(mode){ syncCex(); PICK={q:'',g:'Alle',mode:mode||'active'}; openSheet(''); drawPicker(); }
 let CX=null;
+function allGroups(){ return [...GROUPS,...new Set((S.cex||[]).map(e=>e.g).filter(g=>!GROUPS.includes(g)))]; }
+function cexLabel(e){ return e.dsets?`${e.dsets} × ${e.dreps||'–'}${e.dkg?' · '+kgFmt(e.dkg)+' kg':''}`:e.g; }
+function openCexForm(from,id){ const e=id&&(S.cex||[]).find(x=>x.id===id); CX=e?{id,from,n:e.n,g:e.g,kg:e.dkg??'',sets:e.dsets??3,reps:e.dreps??10}:{from,n:from==='picker'?PICK.q||'':'',g:'Oberkörper',kg:'',sets:3,reps:10}; if(from==='gym') openSheet(''); drawCexForm(); }
 function drawCexForm(){ const sh=$('#sheet-root .sheet'); if(!sh) return;
-  sh.innerHTML=`<div class="grab"></div><div class="sheet-h"><h2>Eigene Übung</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
-  <div class="field"><label>Name</label><input class="inp" id="cx-n" placeholder="z. B. Hip Thrust Maschine" value="${esc(CX.n)}" data-in="cx-n" autocomplete="off"></div>
-  <div class="field"><label>Muskelgruppe</label><div class="chips" style="flex-wrap:wrap;overflow:visible">${GROUPS.map(g=>`<button class="chip ${CX.g===g?'on-lime':''}" data-act="cx-set" data-f="g" data-v="${g}">${g}</button>`).join('')}</div></div>
-  <div class="field"><label>Art</label><div class="chips" style="flex-wrap:wrap;overflow:visible">${[['w','Mit Gewicht'],['bw','Körpergewicht'],['time','Auf Zeit'],['cardio','Cardio']].map(([v,l])=>`<button class="chip ${CX.t===v?'on-lime':''}" data-act="cx-set" data-f="t" data-v="${v}">${l}</button>`).join('')}</div></div>
-  <div class="field"><label>Anstrengung</label><div class="chips" style="flex-wrap:wrap;overflow:visible">${[['l','Leicht'],['m','Mittel'],['h','Hart']].map(([v,l])=>`<button class="chip ${CX.i===v?'on-lime':''}" data-act="cx-set" data-f="i" data-v="${v}">${l}</button>`).join('')}</div><div class="hint" style="margin-top:6px">Wird für die Kalorienberechnung genutzt.</div></div>
-  <button class="btn lime block" style="margin-top:14px" data-act="cx-save">Speichern & hinzufügen</button>
-  <button class="btn ghost block" style="margin-top:8px" data-act="cx-back">Zurück</button>`; }
+  const num=(id,l,v,ph,mode)=>`<div class="field"><label>${l}</label><input class="inp" id="${id}" type="number" inputmode="${mode}" placeholder="${ph}" value="${v}" data-in="cx-f" data-f="${id.slice(3)}"></div>`;
+  sh.innerHTML=`<div class="grab"></div><div class="sheet-h"><h2>${CX.id?'Übung bearbeiten':'Eigene Übung'}</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
+  <div class="field"><label>Bereich</label><div class="grid2">${['Oberkörper','Unterkörper'].map(g=>`<button class="chip ${CX.g===g?'on-lime':''}" style="height:48px;justify-content:center;font-size:15px" data-act="cx-set" data-f="g" data-v="${g}">${g==='Oberkörper'?'💪':'🦵'} ${g}</button>`).join('')}</div></div>
+  <div class="field"><label>Name</label><input class="inp" id="cx-n" placeholder="z. B. Hip Thrust Maschine" value="${esc(CX.n)}" data-in="cx-f" data-f="n" autocomplete="off"></div>
+  <div class="grid3">${num('cx-kg','Gewicht kg',CX.kg,'0 = ohne','decimal')}${num('cx-sets','Sätze',CX.sets,'3','numeric')}${num('cx-reps','Wdh.',CX.reps,'10','numeric')}</div>
+  <button class="btn lime block" style="margin-top:14px" data-act="cx-save">${CX.from==='picker'?'Speichern & hinzufügen':'Speichern'}</button>
+  ${CX.id?`<button class="btn ghost block" style="margin-top:8px;color:var(--red)" data-act="cx-del" data-id="${CX.id}">Übung löschen</button>`:CX.from==='picker'?`<button class="btn ghost block" style="margin-top:8px" data-act="cx-back">Zurück</button>`:''}`; }
+function cexCard(){ const L=S.cex||[]; return `<div class="card" style="margin-top:12px;padding:16px">
+  <div class="between"><b style="font-size:14px">Meine Übungen</b><button class="link" style="padding:0" data-act="cx-open">${I.plus} Neue Übung</button></div>
+  ${L.length?`<div class="list" style="margin-top:6px">${L.map(e=>`<button class="li" data-act="cx-edit" data-id="${e.id}"><span class="av" style="color:var(--lime)">${e.g==='Unterkörper'?'🦵':e.g==='Oberkörper'?'💪':I.dumb}</span><span class="m"><b>${esc(e.n)}</b><small>${e.g} · ${cexLabel(e)}</small></span><span class="r dim">›</span></button>`).join('')}</div>`:`<p class="hint" style="margin:8px 0 0">Leg deine eigenen Übungen mit Gewicht, Sätzen und Wiederholungen an – sie stehen dann in jedem Training bereit.</p>`}
+</div>`; }
 function drawPicker(){ const sh=$('#sheet-root .sheet'); if(!sh) return; const nq=norm(PICK.q);
   const list=Object.values(EX).filter(e=>(PICK.g==='Alle'||e.g===PICK.g)&&(!nq||norm(e.n).includes(nq)));
   sh.innerHTML=`<div class="grab"></div><div class="sheet-h"><h2>Übung wählen</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
   <div class="search">${I.search}<input class="inp" id="pk-q" placeholder="Übung suchen …" value="${esc(PICK.q)}" data-in="pk-q" autocomplete="off"></div>
-  <div class="chips" style="margin:12px 0 4px">${['Alle',...GROUPS].map(g=>`<button class="chip ${PICK.g===g?'on-lime':''}" data-act="pk-g" data-g="${g}">${g}</button>`).join('')}</div>
+  <div class="chips" style="margin:12px 0 4px">${['Alle',...allGroups()].map(g=>`<button class="chip ${PICK.g===g?'on-lime':''}" data-act="pk-g" data-g="${g}">${g}</button>`).join('')}</div>
   <button class="btn ghost block" style="margin:8px 0 4px;height:44px" data-act="cx-new">${I.plus} Eigene Übung erstellen</button>
   <div class="list foodlist" id="pk-list">${pickList(list)}</div>`; }
 function pickList(list){ return list.map(e=>{const p=prevSets(e.id); return `<button class="li" data-act="pk-add" data-id="${e.id}"><span class="av" style="color:${e.t==='cardio'?'var(--orange)':'var(--lime)'}">${e.t==='cardio'?'🏃':I.dumb}</span><span class="m"><b>${esc(e.n)}${e.custom?' <span class="tag orange" style="margin-left:4px">Eigene</span>':''}</b><small>${e.g}${p?' · zuletzt '+prevLabel(e,p[0]):''}</small></span><span class="r" style="color:var(--lime)">${I.plus}</span></button>`}).join('')||'<p class="empty">Keine Übung gefunden.</p>'; }
@@ -1430,7 +1438,7 @@ const IN={
   'fs-g':el=>{ FS.g=+el.value||0; updNut(); },
   'ai-t':el=>{ FS.aiText=el.value; },
   'ai-g':el=>{ const x=FS.ai.items[+el.dataset.i], g=+el.value||0, b=x.base, f=b.g?g/b.g:0; x.grams=g; x.kcal=b.k*f; x.protein=b.p*f; x.carbs=b.c*f; x.fat=b.f*f; x.sugar=(b.z||0)*f; $('#ai-k-'+el.dataset.i).textContent=fmt(x.kcal); $('#ai-tot').innerHTML=fmt(sum(FS.ai.items.filter(i=>i.on),i=>i.kcal))+'<span>kcal</span>'; },
-  'cx-n':el=>{ CX.n=el.value; },
+  'cx-f':el=>{ CX[el.dataset.f]=el.value; },
   'pk-q':el=>{ PICK.q=el.value; const nq=norm(PICK.q); $('#pk-list').innerHTML=pickList(Object.values(EX).filter(e=>(PICK.g==='Alle'||e.g===PICK.g)&&(!nq||norm(e.n).includes(nq)))); },
   'p-live':()=>updProfileRes(),
 };
@@ -1463,16 +1471,17 @@ function aiSetupHtml(){ return `<div class="info" style="line-height:1.6"><b>KI 
   <button class="btn ghost block" style="margin:-4px 0 10px" data-act="ai-paste">📋 Aus Zwischenablage einfügen</button><div></div>
   <button class="btn orange block" data-act="ai-key-save">${I.spark} Speichern & KI aktivieren</button>
   <p class="hint" style="margin-top:10px">Der Schlüssel bleibt nur auf diesem Gerät. Danach kannst du jedes Essen beschreiben oder fotografieren.</p>`; }
-Object.assign(A,{'cx-new':()=>{ CX={n:PICK.q||'',g:PICK.g!=='Alle'?PICK.g:'Brust',t:PICK.g==='Cardio'?'cardio':'w',i:'m'}; drawCexForm(); },
-  'cx-set':el=>{ CX[el.dataset.f]=el.dataset.v; if(el.dataset.f==='g'&&el.dataset.v==='Cardio') CX.t='cardio'; drawCexForm(); },
+Object.assign(A,{'cx-new':()=>openCexForm('picker'),
+  'cx-open':()=>openCexForm('gym'),
+  'cx-edit':el=>openCexForm('gym',el.dataset.id),
+  'cx-set':el=>{ CX[el.dataset.f]=el.dataset.v; drawCexForm(); },
   'cx-back':()=>drawPicker(),
   'cx-save':()=>{ const n=$('#cx-n').value.trim(); if(!n){bad($('#cx-n'));return}
-    const mi={l:0.75,m:1,h:1.3}[CX.i], id='x'+rid(); let e;
-    if(CX.t==='cardio') e={id,n,g:CX.g,t:'cardio',met:+(7*mi).toFixed(1),hint:''};
-    else if(CX.t==='time') e={id,n,g:CX.g,t:'time',met:+(4*mi).toFixed(1)};
-    else e={id,n,g:CX.g,t:CX.t,met:+(5*mi).toFixed(1),spr:3,rom:0.45,bwf:CX.t==='bw'?0.7:0};
-    S.cex=[...(S.cex||[]),e]; syncCex(); touch('profile'); A['pk-add']({dataset:{id}}); },
-  'cx-del':el=>{ const id=el.dataset.id; S.cex=(S.cex||[]).filter(e=>e.id!==id); touch('profile'); drawPicker(); },
+    const kg=+String($('#cx-kg').value).replace(',','.')||0, sets=Math.max(1,Math.min(10,+$('#cx-sets').value||3)), reps=Math.max(1,Math.min(100,+$('#cx-reps').value||10));
+    const id=CX.id||'x'+rid(), e={id,n,g:CX.g,t:kg>0?'w':'bw',met:5,spr:3,rom:0.45,bwf:kg>0?0:0.7,dkg:kg||null,dsets:sets,dreps:reps};
+    S.cex=CX.id?(S.cex||[]).map(x=>x.id===id?e:x):[...(S.cex||[]),e]; syncCex(); touch('profile');
+    if(CX.from==='picker') A['pk-add']({dataset:{id}}); else { closeSheet(); renderAll(); } },
+  'cx-del':el=>{ const id=el.dataset.id; closeSheet(); undoable(['profile'],()=>{ S.cex=(S.cex||[]).filter(e=>e.id!==id); },'Übung gelöscht'); },
   'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
 /* ================= START ================= */
 (function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud();
