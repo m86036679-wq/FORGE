@@ -535,7 +535,7 @@ const GOALS = [['cut','Abnehmen',-450],['maintain','Halten',0],['bulk','Muskelau
 const LS_KEY='forge.v1';
 const DEF_PROFILE={name:'Max',sex:'m',age:18,height:180,weight:75,activity:1.375,goal:'maintain',rest:90,waterGoal:2500,setup:false};
 const DEF_AVAIL={eq:['lh','kh','ma','kz','st','ca'],on:[],off:[]};
-let S={profile:{...DEF_PROFILE},custom:[],templates:[],active:null,days:{},meta:{},body:{w:[],m:[]},fav:[],meals:[],plan:null,avail:clone0(DEF_AVAIL),photos:{}};
+let S={profile:{...DEF_PROFILE},custom:[],templates:[],active:null,days:{},meta:{},body:{w:[],m:[]},fav:[],meals:[],plan:null,avail:clone0(DEF_AVAIL),photos:{},cex:[]};
 function clone0(o){return JSON.parse(JSON.stringify(o))}
 try{const raw=localStorage.getItem(LS_KEY); if(raw){const o=JSON.parse(raw); S={...S,...o,profile:{...DEF_PROFILE,...(o.profile||{})},body:{w:[],m:[],...(o.body||{})},avail:{...DEF_AVAIL,...(o.avail||{})},photos:o.photos||{}};}}catch(e){}
 const clone=o=>JSON.parse(JSON.stringify(o));
@@ -574,7 +574,7 @@ async function initCloud(){
     snap.docs.forEach(doc=>{ if(!doc.exists) return; const data=clone(doc.data()||{}); const k=doc.id; seen.add(k);
       const localTs=S.meta[k]||0, remoteTs=data.updated||0;
       if(remoteTs>=localTs){
-        if(k==='profile'){ S.profile={...DEF_PROFILE,...(data.profile||{})}; S.custom=data.custom||[]; S.templates=data.templates||[]; S.active=data.active||null; S.body={w:[],m:[],...(data.body||{})}; S.fav=data.fav||[]; S.meals=data.meals||[]; S.plan=data.plan||null; S.avail={...DEF_AVAIL,...(data.avail||{})}; }
+        if(k==='profile'){ S.profile={...DEF_PROFILE,...(data.profile||{})}; S.custom=data.custom||[]; S.templates=data.templates||[]; S.active=data.active||null; S.body={w:[],m:[],...(data.body||{})}; S.fav=data.fav||[]; S.meals=data.meals||[]; S.plan=data.plan||null; S.avail={...DEF_AVAIL,...(data.avail||{})}; S.cex=data.cex||[]; }
         else if(k.startsWith('ph')){ S.photos[k.slice(2)]={d:data.d,img:data.img}; }
         else if(k[0]==='d'){ S.days[k.slice(1)]={food:data.food||[],workouts:data.workouts||[],water:data.water||0}; }
         S.meta[k]=remoteTs;
@@ -655,7 +655,8 @@ function prevLabel(ex,s){ if(!s) return '—'; if(ex.t==='cardio') return (s.min
 /* ================= NAVIGATION ================= */
 let VIEW='home'; let FOOD_DAY=today();
 function go(v){ VIEW=v; document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on',el.id==='v-'+v)); document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v)); render(v); window.scrollTo({top:0,behavior:'instant'}); try{history.replaceState(null,'','#'+v)}catch(e){} }
-function render(v=VIEW){ if(v==='home')renderHome(); if(v==='gym')renderGym(); if(v==='food')renderFood(); }
+function syncCex(){ (S.cex||[]).forEach(e=>{EX[e.id]={...e,custom:true}}); }
+function render(v=VIEW){ syncCex(); if(v==='home')renderHome(); if(v==='gym')renderGym(); if(v==='food')renderFood(); }
 function renderAll(){ render(VIEW) }
 
 /* ================= START ================= */
@@ -946,14 +947,24 @@ function closeSheet(){ const root=$('#sheet-root'); clearTimeout(openSheet.t); r
 function confirmSheet(title,text,okLabel,onOk,danger=true){ openSheet(`<div class="sheet-h"><h2>${title}</h2></div><p class="muted" style="margin:0 0 18px">${text}</p><div class="grid2"><button class="btn ghost" data-act="close-sheet">Abbrechen</button><button class="btn ${danger?'danger':'lime'}" id="cf-ok">${okLabel}</button></div>`); $('#cf-ok').onclick=()=>{closeSheet();onOk()}; }
 
 let PICK={q:'',g:'Alle'};
-function openExPicker(mode){ PICK={q:'',g:'Alle',mode:mode||'active'}; openSheet(''); drawPicker(); }
+function openExPicker(mode){ syncCex(); PICK={q:'',g:'Alle',mode:mode||'active'}; openSheet(''); drawPicker(); }
+let CX=null;
+function drawCexForm(){ const sh=$('#sheet-root .sheet'); if(!sh) return;
+  sh.innerHTML=`<div class="grab"></div><div class="sheet-h"><h2>Eigene Übung</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
+  <div class="field"><label>Name</label><input class="inp" id="cx-n" placeholder="z. B. Hip Thrust Maschine" value="${esc(CX.n)}" data-in="cx-n" autocomplete="off"></div>
+  <div class="field"><label>Muskelgruppe</label><div class="chips" style="flex-wrap:wrap;overflow:visible">${GROUPS.map(g=>`<button class="chip ${CX.g===g?'on-lime':''}" data-act="cx-set" data-f="g" data-v="${g}">${g}</button>`).join('')}</div></div>
+  <div class="field"><label>Art</label><div class="chips" style="flex-wrap:wrap;overflow:visible">${[['w','Mit Gewicht'],['bw','Körpergewicht'],['time','Auf Zeit'],['cardio','Cardio']].map(([v,l])=>`<button class="chip ${CX.t===v?'on-lime':''}" data-act="cx-set" data-f="t" data-v="${v}">${l}</button>`).join('')}</div></div>
+  <div class="field"><label>Anstrengung</label><div class="chips" style="flex-wrap:wrap;overflow:visible">${[['l','Leicht'],['m','Mittel'],['h','Hart']].map(([v,l])=>`<button class="chip ${CX.i===v?'on-lime':''}" data-act="cx-set" data-f="i" data-v="${v}">${l}</button>`).join('')}</div><div class="hint" style="margin-top:6px">Wird für die Kalorienberechnung genutzt.</div></div>
+  <button class="btn lime block" style="margin-top:14px" data-act="cx-save">Speichern & hinzufügen</button>
+  <button class="btn ghost block" style="margin-top:8px" data-act="cx-back">Zurück</button>`; }
 function drawPicker(){ const sh=$('#sheet-root .sheet'); if(!sh) return; const nq=norm(PICK.q);
   const list=Object.values(EX).filter(e=>(PICK.g==='Alle'||e.g===PICK.g)&&(!nq||norm(e.n).includes(nq)));
   sh.innerHTML=`<div class="grab"></div><div class="sheet-h"><h2>Übung wählen</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
   <div class="search">${I.search}<input class="inp" id="pk-q" placeholder="Übung suchen …" value="${esc(PICK.q)}" data-in="pk-q" autocomplete="off"></div>
   <div class="chips" style="margin:12px 0 4px">${['Alle',...GROUPS].map(g=>`<button class="chip ${PICK.g===g?'on-lime':''}" data-act="pk-g" data-g="${g}">${g}</button>`).join('')}</div>
+  <button class="btn ghost block" style="margin:8px 0 4px;height:44px" data-act="cx-new">${I.plus} Eigene Übung erstellen</button>
   <div class="list foodlist" id="pk-list">${pickList(list)}</div>`; }
-function pickList(list){ return list.map(e=>{const p=prevSets(e.id); return `<button class="li" data-act="pk-add" data-id="${e.id}"><span class="av" style="color:${e.t==='cardio'?'var(--orange)':'var(--lime)'}">${e.t==='cardio'?'🏃':I.dumb}</span><span class="m"><b>${esc(e.n)}</b><small>${e.g}${p?' · zuletzt '+prevLabel(e,p[0]):''}</small></span><span class="r" style="color:var(--lime)">${I.plus}</span></button>`}).join('')||'<p class="empty">Keine Übung gefunden.</p>'; }
+function pickList(list){ return list.map(e=>{const p=prevSets(e.id); return `<button class="li" data-act="pk-add" data-id="${e.id}"><span class="av" style="color:${e.t==='cardio'?'var(--orange)':'var(--lime)'}">${e.t==='cardio'?'🏃':I.dumb}</span><span class="m"><b>${esc(e.n)}${e.custom?' <span class="tag orange" style="margin-left:4px">Eigene</span>':''}</b><small>${e.g}${p?' · zuletzt '+prevLabel(e,p[0]):''}</small></span><span class="r" style="color:var(--lime)">${I.plus}</span></button>`}).join('')||'<p class="empty">Keine Übung gefunden.</p>'; }
 
 function openProfile(){ const p=S.profile;
   openSheet(`<div class="sheet-h"><h2>Dein Profil</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
@@ -975,7 +986,7 @@ function updProfileRes(){ const el=$('#p-res'); if(!el) return; const T=targets(
   el.innerHTML=`Grundumsatz <b>${fmt(T.bmr)}</b> kcal · Alltag <b>${fmt(T.tdee)}</b> kcal<br>Tagesziel <b style="color:var(--lime)">${fmt(T.kcal)} kcal</b> + was du im Training verbrennst<br>Protein <b>${T.protein} g</b> · Kohlenhydrate <b>${T.carbs} g</b> · Fett <b>${T.fat} g</b><br><span class="dim">Berechnet nach Mifflin-St Jeor.</span>`; }
 
 /* ================= RÜCKGÄNGIG ================= */
-const PFIELDS=['profile','custom','templates','active','body','fav','meals','plan','avail'];
+const PFIELDS=['profile','custom','templates','active','body','fav','meals','plan','avail','cex'];
 let UNDO=null;
 function snapKey(k){ if(k==='profile'){ const o={}; PFIELDS.forEach(f=>o[f]=clone(S[f]??null)); return o; }
   if(k[0]==='d') return clone(S.days[k.slice(1)]??null); if(k.startsWith('ph')) return clone(S.photos[k.slice(2)]??null); return null; }
@@ -1419,6 +1430,7 @@ const IN={
   'fs-g':el=>{ FS.g=+el.value||0; updNut(); },
   'ai-t':el=>{ FS.aiText=el.value; },
   'ai-g':el=>{ const x=FS.ai.items[+el.dataset.i], g=+el.value||0, b=x.base, f=b.g?g/b.g:0; x.grams=g; x.kcal=b.k*f; x.protein=b.p*f; x.carbs=b.c*f; x.fat=b.f*f; x.sugar=(b.z||0)*f; $('#ai-k-'+el.dataset.i).textContent=fmt(x.kcal); $('#ai-tot').innerHTML=fmt(sum(FS.ai.items.filter(i=>i.on),i=>i.kcal))+'<span>kcal</span>'; },
+  'cx-n':el=>{ CX.n=el.value; },
   'pk-q':el=>{ PICK.q=el.value; const nq=norm(PICK.q); $('#pk-list').innerHTML=pickList(Object.values(EX).filter(e=>(PICK.g==='Alle'||e.g===PICK.g)&&(!nq||norm(e.n).includes(nq)))); },
   'p-live':()=>updProfileRes(),
 };
@@ -1451,7 +1463,17 @@ function aiSetupHtml(){ return `<div class="info" style="line-height:1.6"><b>KI 
   <button class="btn ghost block" style="margin:-4px 0 10px" data-act="ai-paste">📋 Aus Zwischenablage einfügen</button><div></div>
   <button class="btn orange block" data-act="ai-key-save">${I.spark} Speichern & KI aktivieren</button>
   <p class="hint" style="margin-top:10px">Der Schlüssel bleibt nur auf diesem Gerät. Danach kannst du jedes Essen beschreiben oder fotografieren.</p>`; }
-Object.assign(A,{'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
+Object.assign(A,{'cx-new':()=>{ CX={n:PICK.q||'',g:PICK.g!=='Alle'?PICK.g:'Brust',t:PICK.g==='Cardio'?'cardio':'w',i:'m'}; drawCexForm(); },
+  'cx-set':el=>{ CX[el.dataset.f]=el.dataset.v; if(el.dataset.f==='g'&&el.dataset.v==='Cardio') CX.t='cardio'; drawCexForm(); },
+  'cx-back':()=>drawPicker(),
+  'cx-save':()=>{ const n=$('#cx-n').value.trim(); if(!n){bad($('#cx-n'));return}
+    const mi={l:0.75,m:1,h:1.3}[CX.i], id='x'+rid(); let e;
+    if(CX.t==='cardio') e={id,n,g:CX.g,t:'cardio',met:+(7*mi).toFixed(1),hint:''};
+    else if(CX.t==='time') e={id,n,g:CX.g,t:'time',met:+(4*mi).toFixed(1)};
+    else e={id,n,g:CX.g,t:CX.t,met:+(5*mi).toFixed(1),spr:3,rom:0.45,bwf:CX.t==='bw'?0.7:0};
+    S.cex=[...(S.cex||[]),e]; syncCex(); touch('profile'); A['pk-add']({dataset:{id}}); },
+  'cx-del':el=>{ const id=el.dataset.id; S.cex=(S.cex||[]).filter(e=>e.id!==id); touch('profile'); drawPicker(); },
+  'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
 /* ================= START ================= */
 (function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud();
   try{ if('serviceWorker' in navigator && window.top===window && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} })();
