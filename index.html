@@ -545,7 +545,7 @@ let AI_OK=false, SAMPLE=null;
 const groqKey=()=>{try{return localStorage.getItem('forge.groq')||''}catch(e){return ''}};
 AI_OK=!!groqKey();
 let DB=null, DBCOL=null, flushing=false, syncT=null; const dirty=new Set();
-function touch(key){ S.meta[key]=Date.now(); saveLocal(); if(DBCOL){dirty.add(key); clearTimeout(syncT); syncT=setTimeout(flush,900);} }
+function touch(key){ S.meta[key]=Date.now(); saveLocal(); if(!key.startsWith('ph')) accSchedule(); if(DBCOL){dirty.add(key); clearTimeout(syncT); syncT=setTimeout(flush,900);} }
 function docBody(key){
   if(key==='profile'){ const o={updated:S.meta.profile||Date.now()}; PFIELDS.forEach(f=>o[f]=S[f]??null); return o; }
   if(key.startsWith('ph')){ const ph=S.photos[key.slice(2)]; return ph?{d:ph.d,img:ph.img,updated:S.meta[key]||Date.now()}:null; }
@@ -586,6 +586,50 @@ async function initCloud(){
   }catch(e){ setSync(false) }
 }
 
+
+/* ================= KONTO (Name + Passwort, verschlüsselt) ================= */
+const KV_URLS=['https://kvs.ix.workers.dev/forge-sync-v1/','https://awesomekv.dev/forge-sync-v1/'];
+let ACC=null; try{ ACC=JSON.parse(localStorage.getItem('forge.acct')||'null'); }catch(e){}
+let ACC_KEY=null, accT=null, accBusy=false, accLastPull=0;
+const te=new TextEncoder(), td=new TextDecoder();
+function u8b64(u){ let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); }
+function b64u8(b){ const s=atob(b), u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u; }
+async function accDerive(name,pw){ const n=name.trim().toLowerCase();
+  const idBuf=await crypto.subtle.digest('SHA-256',te.encode('forge|'+n+'|'+pw)); const id=[...new Uint8Array(idBuf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  const base=await crypto.subtle.importKey('raw',te.encode(pw),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:te.encode('forge-salt|'+n),iterations:150000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},true,['encrypt','decrypt']);
+  const raw=u8b64(new Uint8Array(await crypto.subtle.exportKey('raw',key)));
+  return {id,key,raw}; }
+async function accKey(){ if(ACC_KEY) return ACC_KEY; ACC_KEY=await crypto.subtle.importKey('raw',b64u8(ACC.k),{name:'AES-GCM'},false,['encrypt','decrypt']); return ACC_KEY; }
+async function kvGet(id){ let err; for(const u of KV_URLS){ try{ const r=await fetch(u+id,{cache:'no-store'}); if(r.status===404) return null; if(r.ok) return await r.text(); err=r.status; }catch(e){ err=e; } } throw {code:'net',err}; }
+async function kvPut(id,body){ let err; for(const u of KV_URLS){ try{ const r=await fetch(u+id,{method:'PUT',body}); if(r.ok) return true; err=r.status; }catch(e){ err=e; } } throw {code:'net',err}; }
+async function encJSON(key,obj){ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,te.encode(JSON.stringify(obj)))); return 'F1.'+u8b64(iv)+'.'+u8b64(ct); }
+async function decJSON(key,txt){ const [v,iv,ct]=String(txt).split('.'); if(v!=='F1') throw {code:'format'}; const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64u8(iv)},key,b64u8(ct)); return JSON.parse(td.decode(pt)); }
+function accDocs(){ const o={}; const keys=new Set(['profile',...Object.keys(S.days).map(d=>'d'+d),...Object.keys(S.meta).filter(k=>k[0]==='d')]); keys.forEach(k=>{ o[k]=docBody(k); }); return o; }
+function accApply(docs){ let changed=false, localNewer=false;
+  Object.entries(docs||{}).forEach(([k,data])=>{ if(!data) return; const lt=S.meta[k]||0, rt=data.updated||0;
+    if(rt>lt){ changed=true;
+      if(k==='profile'){ S.profile={...DEF_PROFILE,...(data.profile||{})}; S.custom=data.custom||[]; S.templates=data.templates||[]; S.active=data.active||null; S.body={w:[],m:[],...(data.body||{})}; S.fav=data.fav||[]; S.meals=data.meals||[]; S.plan=data.plan||null; S.avail={...DEF_AVAIL,...(data.avail||{})}; S.cex=data.cex||[]; }
+      else if(k[0]==='d'){ S.days[k.slice(1)]={food:data.food||[],workouts:data.workouts||[],water:data.water||0}; }
+      S.meta[k]=rt; }
+    else if(lt>rt) localNewer=true; });
+  const local=accDocs(); if(Object.keys(local).some(k=>!(docs||{})[k]&&S.meta[k])) localNewer=true;
+  return {changed,localNewer}; }
+async function accPush(){ if(!ACC) return; if(accBusy){ clearTimeout(accT); accT=setTimeout(accPush,2000); return; } accBusy=true;
+  try{ await kvPut(ACC.id,await encJSON(await accKey(),{v:1,t:Date.now(),docs:accDocs()})); ACC.last=Date.now(); localStorage.setItem('forge.acct',JSON.stringify(ACC)); setSync(true); }
+  catch(e){ setSync(false); clearTimeout(accT); accT=setTimeout(accPush,30000); }
+  accBusy=false; }
+async function accPull(force){ if(!ACC||accBusy) return; if(!force&&Date.now()-accLastPull<20000) return; accLastPull=Date.now(); accBusy=true;
+  let res=null; try{ const txt=await kvGet(ACC.id); if(txt){ const o=await decJSON(await accKey(),txt); res=accApply(o.docs); } else res={changed:false,localNewer:true}; setSync(true); }
+  catch(e){ setSync(false); }
+  accBusy=false;
+  if(res){ if(res.changed){ saveLocal(); renderAll(); if(S.active) startTicker(); } if(res.localNewer) accPush(); } }
+function accSchedule(){ if(!ACC) return; clearTimeout(accT); accT=setTimeout(accPush,5000); }
+function accBlock(){ if(ACC) return `<div class="info" style="margin-bottom:14px;display:flex;align-items:center;gap:12px"><span style="font-size:22px">☁️</span><span style="flex:1;min-width:0"><b>Angemeldet als ${esc(ACC.n)}</b><br><span class="dim" style="font-size:12px">${ACC.last?'Zuletzt synchronisiert '+new Date(ACC.last).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'Noch nicht synchronisiert'}</span></span></div>
+  <div class="grid2" style="margin-bottom:18px"><button class="btn ghost sm" style="height:42px" data-act="acc-sync">Synchronisieren</button><button class="btn ghost sm" style="height:42px" data-act="acc-out">Abmelden</button></div>`;
+  return `<div class="card" style="padding:14px;margin-bottom:16px;background:var(--s2)"><b style="font-size:14px">☁️ Konto – auf allen Geräten</b><p class="hint" style="margin:4px 0 10px">Melde dich auf jedem Gerät mit demselben Namen und Passwort an. Deine Daten werden verschlüsselt gespeichert.</p>
+  <div class="grid2"><input class="inp" id="acc-n" placeholder="Name" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"><input class="inp" id="acc-p" type="password" placeholder="Passwort" autocomplete="current-password"></div>
+  <button class="btn lime block" style="margin-top:10px;height:44px" data-act="acc-in">Anmelden / Konto erstellen</button></div>`; }
 /* ================= HELFER ================= */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -976,6 +1020,7 @@ function pickList(list){ return list.map(e=>{const p=prevSets(e.id); return `<bu
 
 function openProfile(){ const p=S.profile;
   openSheet(`<div class="sheet-h"><h2>Dein Profil</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
+  ${accBlock()}
   <div class="field"><label>Name</label><input class="inp" id="p-name" value="${esc(p.name)}"></div>
   <div class="field"><label>Geschlecht</label><div class="chips"><button class="chip ${p.sex==='m'?'on':''}" data-act="p-sex" data-v="m">Männlich</button><button class="chip ${p.sex==='f'?'on':''}" data-act="p-sex" data-v="f">Weiblich</button></div></div>
   <div class="grid3"><div class="field"><label>Alter</label><input class="inp" id="p-age" type="number" inputmode="numeric" value="${p.age}" data-in="p-live"></div><div class="field"><label>Größe cm</label><input class="inp" id="p-height" type="number" inputmode="numeric" value="${p.height}" data-in="p-live"></div><div class="field"><label>Gewicht kg</label><input class="inp" id="p-weight" type="number" inputmode="decimal" value="${p.weight}" data-in="p-live"></div></div>
@@ -1471,7 +1516,19 @@ function aiSetupHtml(){ return `<div class="info" style="line-height:1.6"><b>KI 
   <button class="btn ghost block" style="margin:-4px 0 10px" data-act="ai-paste">📋 Aus Zwischenablage einfügen</button><div></div>
   <button class="btn orange block" data-act="ai-key-save">${I.spark} Speichern & KI aktivieren</button>
   <p class="hint" style="margin-top:10px">Der Schlüssel bleibt nur auf diesem Gerät. Danach kannst du jedes Essen beschreiben oder fotografieren.</p>`; }
-Object.assign(A,{'cx-new':()=>openCexForm('picker'),
+Object.assign(A,{'acc-in':async el=>{ const n=$('#acc-n').value.trim(), pw=$('#acc-p').value; if(n.length<2){bad($('#acc-n'));return} if(pw.length<4){bad($('#acc-p'));return}
+    el.disabled=true; el.textContent='Verbinde …';
+    try{ const d=await accDerive(n,pw); const txt=await kvGet(d.id);
+      const finish=async(create)=>{ ACC={n,id:d.id,k:d.raw,last:0}; ACC_KEY=d.key; localStorage.setItem('forge.acct',JSON.stringify(ACC));
+        if(!create){ const o=await decJSON(d.key,txt); const r=accApply(o.docs); saveLocal(); if(r.localNewer) await accPush(); else { ACC.last=Date.now(); localStorage.setItem('forge.acct',JSON.stringify(ACC)); setSync(true); } }
+        else await accPush();
+        closeSheet(); renderAll(); if(S.active) startTicker(); toast(create?'Konto erstellt':'Angemeldet · Daten geladen'); };
+      if(txt) await finish(false);
+      else confirmSheet('Neues Konto erstellen?',`Unter „${esc(n)}“ mit diesem Passwort gibt es noch kein Konto. Falls du dich vertippt hast, geh zurück. Merk dir dein Passwort gut – es kann nicht zurückgesetzt werden.`,'Erstellen',()=>finish(true).catch(()=>toast('Keine Verbindung – später nochmal versuchen')),false);
+    }catch(e){ el.disabled=false; el.textContent='Anmelden / Konto erstellen'; toast(e&&e.code==='net'?'Keine Verbindung zum Speicher':'Anmeldung fehlgeschlagen'); } },
+  'acc-sync':async el=>{ el.textContent='Synchronisiere …'; await accPull(true); if(accT){ clearTimeout(accT); await accPush(); } closeSheet(); toast(ACC&&ACC.last?'Synchronisiert':'Keine Verbindung'); },
+  'acc-out':()=>confirmSheet('Abmelden?','Die Daten bleiben auf diesem Gerät und in deinem Konto. Du kannst dich jederzeit wieder anmelden.','Abmelden',()=>{ ACC=null; ACC_KEY=null; localStorage.removeItem('forge.acct'); $('#sync').style.display='none'; closeSheet(); }),
+  'cx-new':()=>openCexForm('picker'),
   'cx-open':()=>openCexForm('gym'),
   'cx-edit':el=>openCexForm('gym',el.dataset.id),
   'cx-set':el=>{ CX[el.dataset.f]=el.dataset.v; drawCexForm(); },
@@ -1484,7 +1541,7 @@ Object.assign(A,{'cx-new':()=>openCexForm('picker'),
   'cx-del':el=>{ const id=el.dataset.id; closeSheet(); undoable(['profile'],()=>{ S.cex=(S.cex||[]).filter(e=>e.id!==id); },'Übung gelöscht'); },
   'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
 /* ================= START ================= */
-(function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud();
+(function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud(); if(ACC){ setSync(!!ACC.last); accPull(true); } document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') accPull(); else if(ACC&&accT){ clearTimeout(accT); accPush(); } });
   try{ if('serviceWorker' in navigator && window.top===window && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} })();
 </script>
 </body>
