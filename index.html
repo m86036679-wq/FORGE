@@ -286,12 +286,15 @@ textarea.inp{height:auto;min-height:84px;padding:12px;resize:vertical;line-heigh
 #toast{position:fixed;left:50%;bottom:calc(92px + var(--safe-b));transform:translate(-50%,30px);opacity:0;pointer-events:none;background:rgba(34,38,46,.97);color:var(--tx);border:1px solid var(--line2);font-weight:700;font-size:13.5px;padding:9px 12px 9px 16px;border-radius:14px;z-index:80;transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .25s;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:90vw;white-space:nowrap}
 #toast.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
 @media (min-width:700px){ h1.title{font-size:40px} }
-.mm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.mm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .mm small{font-size:11px;color:var(--tx3);font-weight:700}
 .mm b{color:var(--tx);font-family:var(--display);font-size:15px}
 .mm small{white-space:nowrap}
-.mmt{display:block;text-align:left;padding:7px 7px 8px;margin:-7px -7px -8px;border-radius:12px;border:1px solid transparent;min-width:0;transition:background .15s,border-color .15s}
-.mmt.on{background:var(--s2);border-color:var(--mc)}
+.mmt{display:block;text-align:left;padding:11px 9px 12px;min-height:76px;border-radius:14px;background:rgba(255,255,255,.035);border:1.5px solid var(--line);min-width:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .15s,border-color .15s}
+.mmt *{pointer-events:none}
+.mmt>small{font-size:10.5px;overflow:hidden;text-overflow:ellipsis;display:block}
+.ring[data-act]{cursor:pointer;touch-action:manipulation}
+.mmt.on{background:var(--s2);border-color:var(--mc);box-shadow:0 0 0 1px var(--mc) inset}
 .mmt:active{transform:scale(.97)}
 .mm .bar{margin-top:6px;height:5px}
 .subtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:4px;margin:10px 0 16px}
@@ -667,7 +670,7 @@ function macroList(d,T){ return [['p','Protein','#4FC3F7',sum(d.food,entryP),T.p
 function miniMacros(d,T){ return `<div class="mm">${macroList(d,T).map(([key,l,c,v,g,mx])=>`<button class="mmt ${FOCUS===key?'on':''}" data-act="focus" data-k="${key}" style="--mc:${c}"><small>${l}${mx?' <span style="opacity:.7">max</span>':''}</small><div style="white-space:nowrap"><b style="${mx&&v>g?'color:var(--orange)':''}">${fmt(v)}</b><small> / ${g} g</small></div><div class="bar"><i style="width:${Math.min(100,v/g*100||0)}%;background:${mx&&v>g?'var(--orange)':c}"></i></div></button>`).join('')}</div>`; }
 function heroTop(d,T,eaten,budget,burned){ const left=budget-eaten, over=left<0;
   if(FOCUS==='k') return `<div class="ringwrap" style="grid-template-columns:132px 1fr">
-      <div class="ring" style="width:132px;height:132px">${ring(eaten/budget,132,12,over?'#FF4D5E':'#FF7A2F')}
+      <div class="ring" data-act="focus-next" style="width:132px;height:132px">${ring(eaten/budget,132,12,over?'#FF4D5E':'#FF7A2F')}
         <div class="ctr"><div><div class="big num" style="font-size:36px;color:${over?'var(--red)':'var(--tx)'}">${fmt(Math.abs(left))}</div><div class="lbl">${over?'kcal drüber':'kcal übrig'}</div></div></div></div>
       <div class="kv" style="gap:10px">
         <div><span class="ic">${I.target}</span><span><span class="v num">${fmt(T.kcal)}</span><small>Ziel</small></span></div>
@@ -676,7 +679,7 @@ function heroTop(d,T,eaten,budget,burned){ const left=budget-eaten, over=left<0;
       </div></div>`;
   const [key,l,c,v,g,mx]=macroList(d,T).find(x=>x[0]===FOCUS), rest=g-v, bad=mx&&rest<0, col=bad?'#FF4D5E':c, pct=Math.round(v/g*100||0);
   return `<div class="ringwrap" style="grid-template-columns:132px 1fr">
-      <div class="ring" style="width:132px;height:132px">${ring(v/g,132,12,col)}
+      <div class="ring" data-act="focus-next" style="width:132px;height:132px">${ring(v/g,132,12,col)}
         <div class="ctr"><div><div class="big num" style="font-size:36px;color:${bad?'var(--red)':'var(--tx)'}">${pct}<span style="font-size:18px">%</span></div><div class="lbl" style="color:${col}">${l==='Kohlenh.'?'Kohlenhydr.':l}</div></div></div></div>
       <div class="kv" style="gap:10px">
         <div><span class="ic">${I.target}</span><span><span class="v num">${fmt(g)} g</span><small>${mx?'Maximum':'Ziel'}</small></span></div>
@@ -1448,7 +1451,7 @@ function aiSetupHtml(){ return `<div class="info" style="line-height:1.6"><b>KI 
   <button class="btn ghost block" style="margin:-4px 0 10px" data-act="ai-paste">📋 Aus Zwischenablage einfügen</button><div></div>
   <button class="btn orange block" data-act="ai-key-save">${I.spark} Speichern & KI aktivieren</button>
   <p class="hint" style="margin-top:10px">Der Schlüssel bleibt nur auf diesem Gerät. Danach kannst du jedes Essen beschreiben oder fotografieren.</p>`; }
-Object.assign(A,{'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
+Object.assign(A,{'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
 /* ================= START ================= */
 (function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud();
   try{ if('serviceWorker' in navigator && window.top===window && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} })();
