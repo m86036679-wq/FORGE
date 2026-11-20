@@ -292,6 +292,14 @@ textarea.inp{height:auto;min-height:84px;padding:12px;resize:vertical;line-heigh
 .mm small{white-space:nowrap}
 .mmt{display:block;text-align:left;padding:11px 9px 12px;min-height:76px;border-radius:14px;background:rgba(255,255,255,.035);border:1.5px solid var(--line);min-width:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .15s,border-color .15s}
 .mmt *{pointer-events:none}
+.fz{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px 16px}
+.fz .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.fz .t small{font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--tx3)}
+.fz .t b{font-size:16px}
+.fzr{flex:none;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--c,#333) calc(var(--p,0)*1%),var(--s3) 0);position:relative}
+.fzr::before{content:'';position:absolute;inset:5px;border-radius:50%;background:var(--s1)}
+.fzr b{position:relative;font-family:var(--display);font-size:20px}
+.fzr.big{width:84px;height:84px}.fzr.big::before{inset:7px}.fzr.big b{font-size:32px}
 .mmt>small{font-size:10.5px;overflow:hidden;text-overflow:ellipsis;display:block}
 .ring[data-act]{cursor:pointer;touch-action:manipulation}
 .mmt.on{background:var(--s2);border-color:var(--mc);box-shadow:0 0 0 1px var(--mc) inset}
@@ -630,6 +638,32 @@ function accBlock(){ if(ACC) return `<div class="info" style="margin-bottom:14px
   return `<div class="card" style="padding:14px;margin-bottom:16px;background:var(--s2)"><b style="font-size:14px">☁️ Konto – auf allen Geräten</b><p class="hint" style="margin:4px 0 10px">Melde dich auf jedem Gerät mit demselben Namen und Passwort an. Deine Daten werden verschlüsselt gespeichert.</p>
   <div class="grid2"><input class="inp" id="acc-n" placeholder="Name" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"><input class="inp" id="acc-p" type="password" placeholder="Passwort" autocomplete="current-password"></div>
   <button class="btn lime block" style="margin-top:10px;height:44px" data-act="acc-in">Anmelden / Konto erstellen</button></div>`; }
+
+/* ================= TAGESFAZIT ================= */
+function dayScore(k){ const d=getDay(k), T=targets(); if(!d.food.length&&!d.workouts.length) return null;
+  const burned=sum(d.workouts,w=>w.kcal), budget=T.kcal+burned, eaten=sum(d.food,entryK), p=sum(d.food,entryP), z=sum(d.food,entryZ), zmax=Math.round((T.kcal||2000)*0.1/4), w=d.water||0, wg=S.profile.waterGoal||2500;
+  const r=eaten/budget, kp=r>=0.9&&r<=1.1?1:r<0.9?Math.max(0,(r-0.6)/0.3):Math.max(0,(1.4-r)/0.3);
+  const parts=[
+    ['Kalorien',30,kp, kp>=1?`${fmt(eaten)} von ${fmt(budget)} kcal – genau im Ziel`:r<0.9?`${fmt(eaten)} von ${fmt(budget)} kcal – ${fmt(budget-eaten)} kcal zu wenig`:`${fmt(eaten)} von ${fmt(budget)} kcal – ${fmt(eaten-budget)} kcal zu viel`],
+    ['Protein',25,Math.min(1,p/T.protein), p>=T.protein?`${fmt(p)} g – Ziel erreicht`:`${fmt(p)} von ${T.protein} g – ${fmt(T.protein-p)} g fehlen`],
+    ['Zucker',15,z<=zmax?1:Math.max(0,1-(z-zmax)/zmax), z<=zmax?`${fmt(z)} g – unter dem Maximum (${zmax} g)`:`${fmt(z)} g – ${fmt(z-zmax)} g über dem Maximum`],
+    ['Wasser',15,Math.min(1,w/wg), w>=wg?`${r1(w/1000).toLocaleString('de-DE')} l – Ziel erreicht`:`${r1(w/1000).toLocaleString('de-DE')} von ${r1(wg/1000).toLocaleString('de-DE')} l getrunken`],
+    ['Training',15,d.workouts.length?1:0.7, d.workouts.length?`${d.workouts.length} Training · ${fmt(burned)} kcal verbrannt`:'Ruhetag – auch Erholung zählt']];
+  const score=Math.round(sum(parts,x=>x[1]*x[2]));
+  const g=score>=85?['Top-Tag','💪','var(--lime)']:score>=70?['Guter Tag','👍','#9BE15D']:score>=50?['Solider Tag','🙂','var(--orange)']:['Ausbaufähig','⚠️','var(--red)'];
+  const worst=parts.filter(x=>x[2]<0.8).sort((a,b)=>a[2]*a[1]-b[2]*b[1]-(a[1]-b[1]))[0];
+  const tip=!worst?'Alles im grünen Bereich – genau so weitermachen.':{Kalorien:r<0.9?'Morgen etwas mehr essen – zu wenig bremst Muskelaufbau und Energie.':'Morgen bewusster essen – Snacks und Getränke sind oft die versteckten Kalorien.',Protein:'Mehr Protein einplanen: Skyr, Quark, Eier, Hähnchen oder ein Shake.',Zucker:'Weniger Süßes und Softdrinks – Obst und Joghurt sind bessere Alternativen.',Wasser:'Mehr trinken: Flasche griffbereit halten, zu jeder Mahlzeit ein Glas.',Training:'Morgen wieder bewegen – auch ein kurzes Training oder Spaziergang zählt.'}[worst[0]];
+  return {score,g,parts,tip}; }
+function fazitCard(){ const k=today(), f=dayScore(k), late=new Date().getHours()>=18;
+  if(!f) return `<button class="card fz" data-act="fazit" style="margin-top:12px"><span class="fzr dim">–</span><span class="t"><small>Tagesfazit</small><b>Noch nichts eingetragen</b></span><span class="dim">›</span></button>`;
+  return `<button class="card fz" data-act="fazit" style="margin-top:12px"><span class="fzr" style="--c:${f.g[2]};--p:${f.score}"><b class="num">${f.score}</b></span><span class="t"><small>${late?'Tagesfazit':'Tagesfazit · bisher'}</small><b>${f.g[1]} ${f.g[0]}</b><span class="dim" style="font-size:12px">${esc(f.tip)}</span></span><span class="dim">›</span></button>`; }
+function openFazit(k=today()){ const f=dayScore(k);
+  if(!f){ openSheet(`<div class="sheet-h"><h2>Tagesfazit</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div><p class="muted">Heute ist noch nichts eingetragen. Trag dein Essen ein, dann bekommst du hier dein Fazit.</p>`); return; }
+  openSheet(`<div class="sheet-h"><h2>Tagesfazit</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px"><span class="fzr big" style="--c:${f.g[2]};--p:${f.score}"><b class="num">${f.score}</b></span><span><b style="font-family:var(--display);font-size:28px;text-transform:uppercase;color:${f.g[2]}">${f.g[0]} ${f.g[1]}</b><br><span class="dim">${new Date(parseKey(k)).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})} · ${f.score} von 100</span></span></div>
+  <div class="list">${f.parts.map(([l,w,q,t])=>`<div class="li" style="cursor:default"><span class="av" style="color:${q>=0.9?'var(--lime)':q>=0.6?'var(--orange)':'var(--red)'}">${q>=0.9?'✓':q>=0.6?'~':'✗'}</span><span class="m"><b>${l}</b><small>${t}</small></span><span class="r num" style="font-family:var(--display);font-size:18px">${Math.round(w*q)}<span class="dim" style="font-size:12px">/${w}</span></span></div>`).join('')}</div>
+  <div class="info" style="margin-top:14px"><b>Tipp für morgen</b><br>${esc(f.tip)}</div>`); }
+function fazitAuto(){ const n=new Date(), k=today(); if(n.getHours()*60+n.getMinutes()<21*60+30) return; try{ if(localStorage.getItem('forge.fz')===k) return; localStorage.setItem('forge.fz',k); }catch(e){} if(dayScore(k)&&!$('#sheet-root .sheet')) openFazit(k); }
 /* ================= HELFER ================= */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -755,6 +789,7 @@ function renderHome(){
     ${heroTop(d,T,eaten,budget,burned)}
     ${miniMacros(d,T)}
   </div>
+  ${fazitCard()}
 
   <div class="split">
     <button class="tile gym" data-act="tab" data-v="gym"><span class="arrow">${I.arrow}</span><span class="tag lime">Gym</span>
@@ -1516,7 +1551,7 @@ function aiSetupHtml(){ return `<div class="info" style="line-height:1.6"><b>KI 
   <button class="btn ghost block" style="margin:-4px 0 10px" data-act="ai-paste">📋 Aus Zwischenablage einfügen</button><div></div>
   <button class="btn orange block" data-act="ai-key-save">${I.spark} Speichern & KI aktivieren</button>
   <p class="hint" style="margin-top:10px">Der Schlüssel bleibt nur auf diesem Gerät. Danach kannst du jedes Essen beschreiben oder fotografieren.</p>`; }
-Object.assign(A,{'acc-in':async el=>{ const n=$('#acc-n').value.trim(), pw=$('#acc-p').value; if(n.length<2){bad($('#acc-n'));return} if(pw.length<4){bad($('#acc-p'));return}
+Object.assign(A,{'fazit':()=>openFazit(),'acc-in':async el=>{ const n=$('#acc-n').value.trim(), pw=$('#acc-p').value; if(n.length<2){bad($('#acc-n'));return} if(pw.length<4){bad($('#acc-p'));return}
     el.disabled=true; el.textContent='Verbinde …';
     try{ const d=await accDerive(n,pw); const txt=await kvGet(d.id);
       const finish=async(create)=>{ ACC={n,id:d.id,k:d.raw,last:0}; ACC_KEY=d.key; localStorage.setItem('forge.acct',JSON.stringify(ACC));
@@ -1541,7 +1576,7 @@ Object.assign(A,{'acc-in':async el=>{ const n=$('#acc-n').value.trim(), pw=$('#a
   'cx-del':el=>{ const id=el.dataset.id; closeSheet(); undoable(['profile'],()=>{ S.cex=(S.cex||[]).filter(e=>e.id!==id); },'Übung gelöscht'); },
   'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
 /* ================= START ================= */
-(function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud(); if(ACC){ setSync(!!ACC.last); accPull(true); } document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') accPull(); else if(ACC&&accT){ clearTimeout(accT); accPush(); } });
+(function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud(); if(ACC){ setSync(!!ACC.last); accPull(true); } if(h==='fazit') setTimeout(()=>openFazit(),300); else setTimeout(fazitAuto,800); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ accPull(); setTimeout(fazitAuto,500); } else if(ACC&&accT){ clearTimeout(accT); accPush(); } });
   try{ if('serviceWorker' in navigator && window.top===window && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} })();
 </script>
 </body>
