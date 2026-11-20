@@ -664,6 +664,26 @@ function openFazit(k=today()){ const f=dayScore(k);
   <div class="list">${f.parts.map(([l,w,q,t])=>`<div class="li" style="cursor:default"><span class="av" style="color:${q>=0.9?'var(--lime)':q>=0.6?'var(--orange)':'var(--red)'}">${q>=0.9?'✓':q>=0.6?'~':'✗'}</span><span class="m"><b>${l}</b><small>${t}</small></span><span class="r num" style="font-family:var(--display);font-size:18px">${Math.round(w*q)}<span class="dim" style="font-size:12px">/${w}</span></span></div>`).join('')}</div>
   <div class="info" style="margin-top:14px"><b>Tipp für morgen</b><br>${esc(f.tip)}</div>`); }
 function fazitAuto(){ const n=new Date(), k=today(); if(n.getHours()*60+n.getMinutes()<21*60+30) return; try{ if(localStorage.getItem('forge.fz')===k) return; localStorage.setItem('forge.fz',k); }catch(e){} if(dayScore(k)&&!$('#sheet-root .sheet')) openFazit(k); }
+
+/* ================= PUSH (Tagesfazit 21:30) ================= */
+const VAPID_PUB='BNnNChteR7hmXXwA7FbwFwRtXI-3DsGinb1vKj47FtvEiyrY9HIf-EvC9VnNBCgc7FXk3WQAg4tEUPo9VJaoG6U';
+let PUSHK=null; try{ PUSHK=localStorage.getItem('forge.pushkey'); }catch(e){}
+const isStandalone=()=>window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+function vapidU8(b){ const p='='.repeat((4-b.length%4)%4), s=atob((b+p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(s,c=>c.charCodeAt(0)); }
+async function pushWrite(force){ if(!PUSHK||!('serviceWorker' in navigator)) return;
+  try{ const reg=await navigator.serviceWorker.ready, sub=await reg.pushManager.getSubscription(); if(!sub) return;
+    const f=dayScore(today()), info={sub:sub.toJSON(),date:today(),score:f?f.score:null,grade:f?f.g[0]+' '+f.g[1]:'',tip:f?f.tip:''};
+    const sig=JSON.stringify(info); if(!force&&localStorage.getItem('forge.pushlast')===sig) return;
+    let old={}; try{ const t=await kvGet(PUSHK); if(t) old=JSON.parse(t)||{}; }catch(e){}
+    await kvPut(PUSHK,JSON.stringify({...old,...info})); localStorage.setItem('forge.pushlast',sig);
+  }catch(e){} }
+function pushBlock(){
+  if(!('PushManager' in window)||!('Notification' in window)) return isStandalone()?'':`<div class="info" style="margin-bottom:16px">🔔 Benachrichtigungen gehen nur in der App vom Homescreen.</div>`;
+  if(PUSHK&&Notification.permission==='granted') return `<div class="card" style="padding:14px;margin-bottom:16px;background:var(--s2)"><b style="font-size:14px">🔔 Tagesfazit um 21:30 – aktiv</b>
+    <p class="hint" style="margin:4px 0 10px">Einmalig: Kopier den Code und trag ihn bei GitHub als Secret <b>FORGE_PUSH</b> ein.</p>
+    <div style="font-family:ui-monospace,monospace;font-size:12px;background:var(--s3);padding:8px 10px;border-radius:10px;word-break:break-all">${PUSHK}</div>
+    <div class="grid2" style="margin-top:10px"><button class="btn ghost sm" style="height:42px" data-act="push-copy">Code kopieren</button><a class="btn ghost sm" style="height:42px;display:grid;place-items:center;text-decoration:none" href="https://github.com/m86036679-wq/FORGE/settings/secrets/actions/new" target="_blank" rel="noopener">Zu GitHub</a></div></div>`;
+  return `<button class="btn ghost block" style="margin-bottom:16px;height:48px" data-act="push-on">🔔 Benachrichtigung um 21:30 aktivieren</button>`; }
 /* ================= HELFER ================= */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1056,6 +1076,7 @@ function pickList(list){ return list.map(e=>{const p=prevSets(e.id); return `<bu
 function openProfile(){ const p=S.profile;
   openSheet(`<div class="sheet-h"><h2>Dein Profil</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
   ${accBlock()}
+  ${pushBlock()}
   <div class="field"><label>Name</label><input class="inp" id="p-name" value="${esc(p.name)}"></div>
   <div class="field"><label>Geschlecht</label><div class="chips"><button class="chip ${p.sex==='m'?'on':''}" data-act="p-sex" data-v="m">Männlich</button><button class="chip ${p.sex==='f'?'on':''}" data-act="p-sex" data-v="f">Weiblich</button></div></div>
   <div class="grid3"><div class="field"><label>Alter</label><input class="inp" id="p-age" type="number" inputmode="numeric" value="${p.age}" data-in="p-live"></div><div class="field"><label>Größe cm</label><input class="inp" id="p-height" type="number" inputmode="numeric" value="${p.height}" data-in="p-live"></div><div class="field"><label>Gewicht kg</label><input class="inp" id="p-weight" type="number" inputmode="decimal" value="${p.weight}" data-in="p-live"></div></div>
@@ -1551,7 +1572,15 @@ function aiSetupHtml(){ return `<div class="info" style="line-height:1.6"><b>KI 
   <button class="btn ghost block" style="margin:-4px 0 10px" data-act="ai-paste">📋 Aus Zwischenablage einfügen</button><div></div>
   <button class="btn orange block" data-act="ai-key-save">${I.spark} Speichern & KI aktivieren</button>
   <p class="hint" style="margin-top:10px">Der Schlüssel bleibt nur auf diesem Gerät. Danach kannst du jedes Essen beschreiben oder fotografieren.</p>`; }
-Object.assign(A,{'fazit':()=>openFazit(),'acc-in':async el=>{ const n=$('#acc-n').value.trim(), pw=$('#acc-p').value; if(n.length<2){bad($('#acc-n'));return} if(pw.length<4){bad($('#acc-p'));return}
+Object.assign(A,{'push-on':async el=>{ if(!isStandalone()){ toast('Nur in der App vom Homescreen möglich'); return; }
+    el.disabled=true; el.textContent='Einen Moment …';
+    try{ const perm=await Notification.requestPermission(); if(perm!=='granted'){ toast('Mitteilungen wurden nicht erlaubt'); el.disabled=false; el.textContent='🔔 Benachrichtigung um 21:30 aktivieren'; return; }
+      const reg=await navigator.serviceWorker.ready; const sub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidU8(VAPID_PUB)});
+      if(!PUSHK){ PUSHK=[...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,'0')).join(''); localStorage.setItem('forge.pushkey',PUSHK); }
+      await pushWrite(true); closeSheet(); A.profile(); }
+    catch(e){ toast('Aktivieren fehlgeschlagen'); el.disabled=false; el.textContent='🔔 Benachrichtigung um 21:30 aktivieren'; } },
+  'push-copy':async el=>{ try{ await navigator.clipboard.writeText(PUSHK); el.textContent='Kopiert ✓'; }catch(e){ el.textContent='Bitte manuell kopieren'; } },
+  'fazit':()=>openFazit(),'acc-in':async el=>{ const n=$('#acc-n').value.trim(), pw=$('#acc-p').value; if(n.length<2){bad($('#acc-n'));return} if(pw.length<4){bad($('#acc-p'));return}
     el.disabled=true; el.textContent='Verbinde …';
     try{ const d=await accDerive(n,pw); const txt=await kvGet(d.id);
       const finish=async(create)=>{ ACC={n,id:d.id,k:d.raw,last:0}; ACC_KEY=d.key; localStorage.setItem('forge.acct',JSON.stringify(ACC));
@@ -1576,7 +1605,7 @@ Object.assign(A,{'fazit':()=>openFazit(),'acc-in':async el=>{ const n=$('#acc-n'
   'cx-del':el=>{ const id=el.dataset.id; closeSheet(); undoable(['profile'],()=>{ S.cex=(S.cex||[]).filter(e=>e.id!==id); },'Übung gelöscht'); },
   'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
 /* ================= START ================= */
-(function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud(); if(ACC){ setSync(!!ACC.last); accPull(true); } if(h==='fazit') setTimeout(()=>openFazit(),300); else setTimeout(fazitAuto,800); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ accPull(); setTimeout(fazitAuto,500); } else if(ACC&&accT){ clearTimeout(accT); accPush(); } });
+(function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud(); if(ACC){ setSync(!!ACC.last); accPull(true); } if(h==='fazit') setTimeout(()=>openFazit(),300); else setTimeout(fazitAuto,800); if(PUSHK) setTimeout(()=>pushWrite(),3000); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ accPull(); setTimeout(fazitAuto,500); } else if(PUSHK) pushWrite(); else if(ACC&&accT){ clearTimeout(accT); accPush(); } });
   try{ if('serviceWorker' in navigator && window.top===window && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} })();
 </script>
 </body>

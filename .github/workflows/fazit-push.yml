@@ -1,0 +1,21 @@
+name: Tagesfazit-Benachrichtigung
+on:
+  schedule:
+    - cron: '20 19,20 * * *'
+    - cron: '50 19,20 * * *'
+    - cron: '20 21 * * *'
+  workflow_dispatch:
+    inputs:
+      force: {description: 'Sofort senden (Test)', type: boolean, default: true}
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - run: npm i --no-save web-push@3
+      - run: node push/send.mjs
+        env:
+          FORGE_PUSH: ${{ secrets.FORGE_PUSH }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '0' }}
