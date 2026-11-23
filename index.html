@@ -292,6 +292,13 @@ textarea.inp{height:auto;min-height:84px;padding:12px;resize:vertical;line-heigh
 .mm small{white-space:nowrap}
 .mmt{display:block;text-align:left;padding:11px 9px 12px;min-height:76px;border-radius:14px;background:rgba(255,255,255,.035);border:1.5px solid var(--line);min-width:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .15s,border-color .15s}
 .mmt *{pointer-events:none}
+.scanbox{position:relative;border-radius:18px;overflow:hidden;background:#000;aspect-ratio:4/3}
+.scanbox video{width:100%;height:100%;object-fit:cover;display:block}
+.scanframe{position:absolute;left:12%;right:12%;top:28%;bottom:28%;border:2.5px solid rgba(255,255,255,.85);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.scanline{position:absolute;left:14%;right:14%;top:50%;height:2px;background:var(--orange);box-shadow:0 0 12px var(--orange);animation:scanl 1.6s ease-in-out infinite}
+@keyframes scanl{0%,100%{transform:translateY(-38px)}50%{transform:translateY(38px)}}
+.spin{width:28px;height:28px;border-radius:50%;border:3px solid var(--s3);border-top-color:var(--orange);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .fz{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px 16px}
 .fz .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .fz .t small{font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--tx3)}
@@ -609,8 +616,8 @@ async function accDerive(name,pw){ const n=name.trim().toLowerCase();
   const raw=u8b64(new Uint8Array(await crypto.subtle.exportKey('raw',key)));
   return {id,key,raw}; }
 async function accKey(){ if(ACC_KEY) return ACC_KEY; ACC_KEY=await crypto.subtle.importKey('raw',b64u8(ACC.k),{name:'AES-GCM'},false,['encrypt','decrypt']); return ACC_KEY; }
-async function kvGet(id){ let err; for(const u of KV_URLS){ try{ const r=await fetch(u+id,{cache:'no-store'}); if(r.status===404) return null; if(r.ok) return await r.text(); err=r.status; }catch(e){ err=e; } } throw {code:'net',err}; }
-async function kvPut(id,body){ let err; for(const u of KV_URLS){ try{ const r=await fetch(u+id,{method:'PUT',body}); if(r.ok) return true; err=r.status; }catch(e){ err=e; } } throw {code:'net',err}; }
+async function kvGet(id){ let err, nf=0; for(const u of KV_URLS){ try{ const r=await fetch(u+id,{cache:'no-store'}); if(r.status===404){ nf++; continue; } if(r.ok) return await r.text(); err=r.status; }catch(e){ err=e; } } if(nf) return null; throw {code:'net',err}; }
+async function kvPut(id,body){ const rs=await Promise.allSettled(KV_URLS.map(u=>fetch(u+id,{method:'PUT',body}).then(r=>{ if(!r.ok) throw r.status; }))); if(rs.some(r=>r.status==='fulfilled')) return true; throw {code:'net'}; }
 async function encJSON(key,obj){ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,te.encode(JSON.stringify(obj)))); return 'F1.'+u8b64(iv)+'.'+u8b64(ct); }
 async function decJSON(key,txt){ const [v,iv,ct]=String(txt).split('.'); if(v!=='F1') throw {code:'format'}; const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64u8(iv)},key,b64u8(ct)); return JSON.parse(td.decode(pt)); }
 function accDocs(){ const o={}; const keys=new Set(['profile',...Object.keys(S.days).map(d=>'d'+d),...Object.keys(S.meta).filter(k=>k[0]==='d')]); keys.forEach(k=>{ o[k]=docBody(k); }); return o; }
@@ -684,6 +691,121 @@ function pushBlock(){
     <div style="font-family:ui-monospace,monospace;font-size:12px;background:var(--s3);padding:8px 10px;border-radius:10px;word-break:break-all">${PUSHK}</div>
     <div class="grid2" style="margin-top:10px"><button class="btn ghost sm" style="height:42px" data-act="push-copy">Code kopieren</button><a class="btn ghost sm" style="height:42px;display:grid;place-items:center;text-decoration:none" href="https://github.com/m86036679-wq/FORGE/settings/secrets/actions/new" target="_blank" rel="noopener">Zu GitHub</a></div></div>`;
   return `<button class="btn ghost block" style="margin-bottom:16px;height:48px" data-act="push-on">🔔 Benachrichtigung um 21:30 aktivieren</button>`; }
+
+/* ================= OPEN FOOD FACTS: SUCHE & BARCODE ================= */
+const OFFC={}, OFF_FIELDS='code,product_name,product_name_de,brands,nutriments,serving_quantity';
+function offMap(pr){ if(!pr) return null; const n=pr.nutriments||{}; let k=n['energy-kcal_100g']; if((k==null||k==='')&&n['energy_100g']!=null) k=n['energy_100g']/4.184; k=+k; if(!isFinite(k)||k<0) return null;
+  const name=String(pr.product_name_de||pr.product_name||'').trim(); if(!name) return null;
+  const br=(Array.isArray(pr.brands)?pr.brands[0]:String(pr.brands||'').split(',')[0]||'').trim();
+  const sq=parseFloat(pr.serving_quantity);
+  const f={id:'o'+pr.code,n:name+(br&&!norm(name).includes(norm(br))?' · '+br:''),k:r1(k),p:r1(+n.proteins_100g||0),c:r1(+n.carbohydrates_100g||0),f:r1(+n.fat_100g||0),z:r1(+n.sugars_100g||0),pg:sq>0&&sq<2000?Math.round(sq):100,pl:sq>0&&sq<2000?'Portion':'100 g',cat:'Online',off:true,code:String(pr.code||'')};
+  OFFC[f.id]=f; return f; }
+async function offSearch(q){
+  try{ const r=await fetch('https://search.openfoodfacts.org/search?q='+encodeURIComponent(q)+'&langs=de&page_size=25&fields='+OFF_FIELDS); if(r.ok){ const j=await r.json(); const L=(j.hits||[]).map(offMap).filter(Boolean); if(L.length) return L; } }catch(e){}
+  const r=await fetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms='+encodeURIComponent(q)+'&search_simple=1&action=process&json=1&page_size=25&lc=de&fields='+OFF_FIELDS);
+  const j=await r.json(); return (j.products||[]).map(offMap).filter(Boolean); }
+async function offProduct(code){ const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields='+OFF_FIELDS); if(!r.ok) return null; const j=await r.json(); return j&&j.status===1&&j.product?offMap({...j.product,code}):null; }
+let offT=null, offQ='';
+function offKick(){ const el=$('#fs-off'); if(!el) return; const q=FS.q.trim(); clearTimeout(offT); if(q.length<3){ el.innerHTML=''; offQ=''; return; }
+  el.innerHTML=secHead('Online-Produkte')+'<p class="hint" style="padding:10px 0">Suche in Open Food Facts …</p>'; offQ=q;
+  offT=setTimeout(async()=>{ try{ const L=await offSearch(q); if(offQ!==q||!$('#fs-off')) return; const seen=new Set(); const U=L.filter(f=>{const k=norm(f.n); if(seen.has(k)) return false; seen.add(k); return true}).slice(0,15);
+      $('#fs-off').innerHTML=U.length?secHead('Online-Produkte · Open Food Facts')+U.map(foodRow).join(''):secHead('Online-Produkte')+'<p class="hint" style="padding:10px 0">Online nichts gefunden.</p>'; }
+    catch(e){ if(offQ===q&&$('#fs-off')) $('#fs-off').innerHTML=secHead('Online-Produkte')+'<p class="hint" style="padding:10px 0">Online-Suche gerade nicht erreichbar.</p>'; } },450); }
+let SCAN=null;
+function loadZXing(){ if(window.ZXing) return Promise.resolve(); return new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src='https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js'; sc.onload=res; sc.onerror=rej; document.head.appendChild(sc); }); }
+function scanStop(){ if(!SCAN) return; const sc=SCAN; SCAN=null; try{ sc.reader&&sc.reader.reset(); }catch(e){} try{ sc.stream&&sc.stream.getTracks().forEach(t=>t.stop()); }catch(e){} cancelAnimationFrame(sc.raf); }
+function scanHead(t){ return `<div class="grab"></div><div class="sheet-h"><button class="x" data-act="scan-back" aria-label="Zurück">${I.chevL}</button><h2 style="flex:1;font-size:24px">${t}</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>`; }
+async function openScanner(){ const sh=$('#sheet-root .sheet'); if(!sh) return; scanStop();
+  sh.innerHTML=scanHead('Barcode scannen')+`<div class="scanbox"><video id="scan-v" playsinline muted autoplay></video><div class="scanframe"></div><div class="scanline"></div></div>
+  <p class="hint" id="scan-msg" style="text-align:center;margin:10px 0">Halte den Strichcode in den Rahmen.</p>
+  <div class="grid2" style="grid-template-columns:1fr auto"><input class="inp" id="scan-code" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Oder Nummer eintippen" autocomplete="off"><button class="btn ghost" style="height:48px;padding:0 16px" data-act="scan-manual">Suchen</button></div>`;
+  const v=$('#scan-v'), msg=t=>{ const m=$('#scan-msg'); if(m) m.textContent=t; }; const me={}; SCAN=me;
+  try{
+    if('BarcodeDetector' in window&&(await BarcodeDetector.getSupportedFormats()).includes('ean_13')){
+      const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']}); const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+      if(SCAN!==me){ st.getTracks().forEach(t=>t.stop()); return; } me.stream=st; v.srcObject=st; await v.play();
+      const loop=async()=>{ if(SCAN!==me) return; try{ const r=await det.detect(v); if(r&&r[0]) return scanHit(r[0].rawValue); }catch(e){} if(SCAN===me) me.raf=requestAnimationFrame(loop); }; loop();
+    } else {
+      msg('Kamera wird gestartet …'); await loadZXing(); if(SCAN!==me) return;
+      const hints=new Map(); hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E]); hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+      const reader=new ZXing.BrowserMultiFormatReader(hints,250); me.reader=reader;
+      await reader.decodeFromConstraints({video:{facingMode:'environment'},audio:false},v,res=>{ if(res&&SCAN===me) scanHit(res.getText()); });
+      if(SCAN===me) msg('Halte den Strichcode in den Rahmen.');
+    }
+  }catch(e){ if(SCAN===me) msg(e&&e.name==='NotAllowedError'?'Kamera nicht erlaubt – Nummer unten eintippen.':'Kamera nicht verfügbar – Nummer unten eintippen.'); } }
+function scanHit(code){ if(!SCAN) return; scanStop(); try{ navigator.vibrate&&navigator.vibrate(40); }catch(e){} scanLookup(String(code)); }
+async function scanLookup(code){ const sh=$('#sheet-root .sheet'); if(!sh) return;
+  sh.innerHTML=scanHead('Barcode')+`<div style="padding:40px 0;text-align:center"><div class="spin" style="margin:0 auto 12px"></div><p class="muted" style="margin:0">Suche ${esc(code)} …</p></div>`;
+  let f=null, err=false; try{ f=await offProduct(code); }catch(e){ err=true; }
+  if(!$('#sheet-root .sheet')) return;
+  if(f){ FS.sel=f; FS.g=f.pg||100; drawFoodSheet(); return; }
+  $('#sheet-root .sheet').innerHTML=scanHead(err?'Keine Verbindung':'Nicht gefunden')+`<p class="muted" style="margin:0 0 16px">${err?'Die Produktdatenbank ist gerade nicht erreichbar.':`Das Produkt <b>${esc(code)}</b> ist noch nicht in der Datenbank.`}</p>
+    <div class="grid2"><button class="btn ghost" data-act="scan">Nochmal scannen</button><button class="btn ghost" data-act="fs-tab" data-t="${AI_OK?'ai':'own'}">${AI_OK?'✦ Mit KI schätzen':'Selbst eintragen'}</button></div>`; }
+
+/* ================= BACKUP-ERINNERUNG ================= */
+function bkBanner(){ if(ACC||window.top!==window) return ''; const has=Object.keys(S.days).length>=3; if(!has) return ''; let last=0; try{ last=+localStorage.getItem('forge.bk')||0; }catch(e){}
+  if(Date.now()-last<7*864e5) return '';
+  return `<button class="banner" style="margin:12px 0 0" data-act="bk-export"><span style="font-size:22px">💾</span><span><b>${last?'Backup fällig':'Sichere deine Daten'}</b><small>${last?'Letztes Backup vor '+Math.floor((Date.now()-last)/864e5)+' Tagen – ein Tipp genügt.':'Ein Tipp – oder melde dich im Profil mit Name & Passwort an.'}</small></span></button>`; }
+
+/* ================= ANPASSENDES KALORIENZIEL ================= */
+let ADC=null;
+function adaptEst(){ if(ADC&&Date.now()-ADC.t<2000) return ADC.v; const p=S.profile, now=new Date();
+  const keys=[...Array(28)].map((_,i)=>dkey(new Date(now.getFullYear(),now.getMonth(),now.getDate()-1-i)));
+  const days=keys.filter(k=>sum(getDay(k).food,entryK)>=800);
+  const ws=weights().filter(x=>x.d>=keys[27]&&x.d<=today());
+  const span=ws.length>1?(parseKey(ws[ws.length-1].d)-parseKey(ws[0].d))/864e5:0;
+  const formula=Math.round((10*p.weight+6.25*p.height-5*p.age+(p.sex==='m'?5:-161))*p.activity);
+  let v={ok:false,days:days.length,w:ws.length,span,formula};
+  if(days.length>=10&&ws.length>=3&&span>=10){
+    const xs=ws.map(x=>(parseKey(x.d)-parseKey(ws[0].d))/864e5), ys=ws.map(x=>x.kg), mx=sum(xs,x=>x)/xs.length, my=sum(ys,y=>y)/ys.length;
+    const slope=xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0)/Math.max(1e-9,xs.reduce((a,x)=>a+(x-mx)**2,0));
+    const intake=sum(days,k=>sum(getDay(k).food,entryK))/days.length, burn=sum(days,k=>sum(getDay(k).workouts,w=>w.kcal))/days.length;
+    let tdee=intake-burn-slope*7700; tdee=Math.max(formula*0.7,Math.min(formula*1.3,tdee));
+    v={ok:true,tdee:Math.round(tdee/10)*10,formula,slope,intake:Math.round(intake),days:days.length,w:ws.length,span}; }
+  ADC={t:Date.now(),v}; return v; }
+
+/* ================= STATISTIK ================= */
+let STR='3m';
+function lineSvg(series,o={}){ const w=o.w||340,h=o.h||140,fy=o.fy||(v=>fmt(v)); const all=series.flatMap(s=>s.pts.map(q=>q.y)); if(!all.length) return '';
+  let mn=Math.min(...all),mx=Math.max(...all); const rg=(mx-mn)||Math.max(1,Math.abs(mx)*0.05); mn-=rg*0.12; mx+=rg*0.12;
+  const L=38,R=6,T=8,B=8,X=x=>L+x*(w-L-R),Y=y=>T+(1-(y-mn)/(mx-mn))*(h-T-B); let g='';
+  [0,0.5,1].forEach(f=>{ const val=mn+(mx-mn)*(1-f), y=T+f*(h-T-B); g+=`<line x1="${L}" x2="${w-R}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.07)"/><text x="${L-6}" y="${y+3.5}" text-anchor="end" font-size="10" fill="#7A808C">${fy(val)}</text>`; });
+  series.forEach(sr=>{ const P=sr.pts.slice().sort((a,b)=>a.x-b.x);
+    if(sr.line!==false&&P.length>1) g+=`<polyline points="${P.map(q=>X(q.x).toFixed(1)+','+Y(q.y).toFixed(1)).join(' ')}" fill="none" stroke="${sr.color}" stroke-width="${sr.sw||2.5}" stroke-linecap="round" stroke-linejoin="round"${sr.dash?' stroke-dasharray="4 4"':''} opacity="${sr.op||1}"/>`;
+    if(sr.dots) P.forEach(q=>g+=`<circle cx="${X(q.x).toFixed(1)}" cy="${Y(q.y).toFixed(1)}" r="${sr.r||2.5}" fill="${sr.color}" opacity="${sr.op||1}"/>`); });
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="display:block">${g}</svg>`; }
+function barsSvg(vals,labels,color,target,o={}){ const w=o.w||340,h=o.h||110; const mx=Math.max(1,...vals,target||0)*1.12; const L=2,R=2,T=6,B=16,n=Math.max(1,vals.length),bw=(w-L-R)/n; let g='';
+  vals.forEach((v,i)=>{ const bh=Math.max(0,v/mx*(h-T-B)); g+=`<rect x="${(L+i*bw+bw*0.17).toFixed(1)}" y="${(h-B-bh).toFixed(1)}" width="${(bw*0.66).toFixed(1)}" height="${Math.max(v?2:0,bh).toFixed(1)}" rx="${Math.min(4,bw*0.2).toFixed(1)}" fill="${color}"/>`; if(labels[i]) g+=`<text x="${(L+i*bw+bw/2).toFixed(1)}" y="${h-3}" text-anchor="middle" font-size="9" fill="#7A808C">${labels[i]}</text>`; });
+  if(target){ const y=h-B-target/mx*(h-T-B); g+=`<line x1="${L}" x2="${w-R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#7A808C" stroke-dasharray="4 4"/>`; }
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="display:block">${g}</svg>`; }
+function openStats(){ openSheet(''); drawStats(); }
+function drawStats(){ const sh=$('#sheet-root .sheet'); if(!sh) return;
+  const D={'4w':28,'3m':91,'6m':182,'1y':364}[STR], now=new Date(), fromD=new Date(now.getFullYear(),now.getMonth(),now.getDate()-D+1), from=dkey(fromD), td=today(), T=targets();
+  const fx=d=>Math.max(0,Math.min(1,(parseKey(d)-fromD)/((D-1)*864e5)));
+  const W=weights(), wIn=W.filter(x=>x.d>=from), tIn=trendOf(W).filter(x=>x.d>=from);
+  const nW=Math.ceil(D/7), wks=[...Array(nW)].map((_,i)=>[...Array(7)].map((_,j)=>dkey(new Date(fromD.getFullYear(),fromD.getMonth(),fromD.getDate()+i*7+j))).filter(k=>k<=td));
+  const ws1=wks.map(keys=>{ const lg=keys.filter(k=>getDay(k).food.length); return {s:keys[0],k:lg.length?sum(lg,k=>sum(getDay(k).food,entryK))/lg.length:0,p:lg.length?sum(lg,k=>sum(getDay(k).food,entryP))/lg.length:0,t:sum(keys,k=>getDay(k).workouts.length)}; });
+  const step=Math.ceil(nW/6), lab=ws1.map((w,i)=>{ if(i%step||!w.s) return ''; const d=parseKey(w.s); return d.getDate()+'.'+(d.getMonth()+1)+'.'; });
+  const allK=Object.keys(S.days).filter(k=>k>=from&&k<=td).sort(), logged=allK.filter(k=>getDay(k).food.length);
+  const avgK=logged.length?sum(logged,k=>sum(getDay(k).food,entryK))/logged.length:0, avgP=logged.length?sum(logged,k=>sum(getDay(k).food,entryP))/logged.length:0;
+  const wos=allK.flatMap(k=>getDay(k).workouts.map(w=>({...w,day:k})));
+  const groups={}; wos.forEach(w=>(w.ex||[]).forEach(e=>{ const g=EX[e.eid]&&EX[e.eid].g; if(g) groups[g]=(groups[g]||0)+workSets(e.sets||[]).length; })); const gmax=Math.max(1,...Object.values(groups));
+  const cnt={}; wos.forEach(w=>(w.ex||[]).forEach(e=>{ if(EX[e.eid]&&EX[e.eid].t==='w'&&workSets(e.sets||[]).length) cnt[e.eid]=(cnt[e.eid]||0)+1; }));
+  const top=Object.entries(cnt).filter(x=>x[1]>=2).sort((a,b)=>b[1]-a[1]).slice(0,4).map(x=>x[0]);
+  const strength=top.map(eid=>{ const pts=[]; wos.forEach(w=>{ const best=Math.max(0,...(w.ex||[]).filter(e=>e.eid===eid).flatMap(e=>workSets(e.sets||[]).map(st=>e1rm(+st.kg,+st.reps)))); if(best) pts.push({x:fx(w.day),y:best}); }); return {eid,pts}; }).filter(x=>x.pts.length>=2);
+  const wd=tIn.length>=2?tIn[tIn.length-1].t-tIn[0].t:null;
+  const chip=(v,l)=>`<button class="chip ${STR===v?'on-lime':''}" data-act="st-r" data-r="${v}">${l}</button>`;
+  const card=(t,right,body)=>`<div class="card" style="margin-top:12px;padding:14px 16px"><div class="between" style="margin-bottom:8px"><b style="font-size:14px">${t}</b><span class="dim" style="font-size:12px">${right}</span></div>${body}</div>`;
+  const empty=t=>`<p class="hint" style="margin:6px 0">${t}</p>`;
+  sh.innerHTML=`<div class="grab"></div><div class="sheet-h"><h2>Statistik</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
+  <div class="chips" style="flex-wrap:wrap">${chip('4w','4 Wo.')}${chip('3m','3 Mon.')}${chip('6m','6 Mon.')}${chip('1y','1 Jahr')}</div>
+  ${card('⚖️ Gewicht',wIn.length?`${tIn.length?r1(tIn[tIn.length-1].t).toLocaleString('de-DE')+' kg':''}${wd!=null?` · <span style="color:${wd<=0?'var(--lime)':'var(--orange)'}">${wd>0?'+':''}${r1(wd).toLocaleString('de-DE')} kg</span>`:''}`:'',
+     wIn.length>=2?lineSvg([{pts:wIn.map(x=>({x:fx(x.d),y:x.kg})),color:'#7A808C',dots:true,line:false,r:2.5,op:.8},{pts:tIn.map(x=>({x:fx(x.d),y:x.t})),color:'#C8FF2E',sw:3}],{fy:v=>r1(v).toLocaleString('de-DE')})+`<div class="legend"><span><i style="background:#7A808C"></i>Messung</span><span><i style="background:var(--lime)"></i>Trend</span></div>`:empty('Trag mindestens zwei Gewichtswerte ein, dann siehst du hier deinen Verlauf.'))}
+  ${card('🍽️ Kalorien pro Woche',logged.length?`Ø ${fmt(avgK)} kcal · ${logged.length} Tage`:'',logged.length?barsSvg(ws1.map(w=>Math.round(w.k)),lab,'#FF7A2F',T.kcal)+`<div class="legend"><span><i style="background:var(--orange)"></i>Ø pro Tag</span><span><i style="background:transparent;border-top:2px dashed var(--tx3);height:0;border-radius:0"></i>Ziel ${fmt(T.kcal)}</span></div>`:empty('Noch keine Mahlzeiten in diesem Zeitraum.'))}
+  ${card('💪 Protein pro Woche',logged.length?`Ø ${fmt(avgP)} g · Ziel ${T.protein} g`:'',logged.length?barsSvg(ws1.map(w=>Math.round(w.p)),lab,'#4FC3F7',T.protein):empty('Noch keine Daten.'))}
+  ${card('🏋️ Trainings pro Woche',`${wos.length} gesamt · Ø ${r1(wos.length/Math.max(1,nW)).toLocaleString('de-DE')}/Woche`,wos.length?barsSvg(ws1.map(w=>w.t),lab,'#C8FF2E',0):empty('Noch keine Trainings in diesem Zeitraum.'))}
+  ${Object.keys(groups).length?card('🎯 Sätze pro Muskelgruppe','gesamt',Object.entries(groups).sort((a,b)=>b[1]-a[1]).map(([g,n])=>`<div class="grp"><span>${esc(g)}</span><div class="bar"><i style="width:${n/gmax*100}%;background:var(--lime)"></i></div><b class="num">${n}</b></div>`).join('')):''}
+  ${card('📈 Kraftentwicklung','geschätztes 1RM',strength.length?strength.map(x=>{ const a=x.pts[0].y,b=x.pts[x.pts.length-1].y,d=b-a; return `<button class="li" style="padding:10px 0;width:100%" data-act="ex-stats" data-id="${x.eid}"><span class="m" style="min-width:0"><b>${esc(EX[x.eid].n)}</b><small>${r0(a)} → ${r0(b)} kg <span style="color:${d>=0?'var(--lime)':'var(--red)'}">${d>=0?'+':''}${r0(d)} kg</span></small></span><span style="width:110px;flex:none">${lineSvg([{pts:x.pts,color:d>=0?'#C8FF2E':'#FF4D5E',sw:2,dots:true,r:2}],{w:110,h:40,fy:()=>''}).replace('style="display:block"','style="display:block;margin-left:-38px;width:148px"')}</span></button>`; }).join(''):empty('Mach eine Übung mindestens zweimal, dann siehst du hier deinen Kraftverlauf.'))}`; }
 /* ================= HELFER ================= */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -703,6 +825,7 @@ const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%
 const hhmm=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+' h '+m+' min':m+' min'};
 function toast(t,undo){const el=$('#toast'); if(!undo) UNDO=null; if(!undo&&/eingetragen|gespeichert|hinzugefügt|Einträge|kcal|aktiviert|übernommen|kopiert|Favorit|Wiederhergestellt|gelöscht|entfernt/i.test(t)) return; el.innerHTML=esc(t)+(undo?' <button data-act="undo" class="t-undo">Rückgängig</button>':''); el.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>{el.classList.remove('on'); if(undo) UNDO=null;},undo?5000:2200)}
 const I={
+  scan:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 9v6M10 9v6M13 9v6M17 9v6"/></svg>',
  plus:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
  check:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
  x:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
@@ -720,7 +843,7 @@ const I={
 /* ================= BERECHNUNGEN ================= */
 function targets(p=S.profile){
   const bmr=10*p.weight+6.25*p.height-5*p.age+(p.sex==='m'?5:-161);
-  const tdee=bmr*p.activity; const adj=(GOALS.find(g=>g[0]===p.goal)||GOALS[1])[2];
+  let tdee=bmr*p.activity; if(p.adapt){ const ad=adaptEst(); if(ad.ok) tdee=ad.tdee; } const adj=(GOALS.find(g=>g[0]===p.goal)||GOALS[1])[2];
   const kcal=Math.round((tdee+adj)/10)*10;
   const protein=Math.round(p.weight*(p.goal==='cut'?2.0:p.goal==='bulk'?1.8:1.6));
   const fat=Math.round(kcal*0.28/9); const carbs=Math.max(0,Math.round((kcal-protein*4-fat*9)/4));
@@ -809,6 +932,7 @@ function renderHome(){
     ${heroTop(d,T,eaten,budget,burned)}
     ${miniMacros(d,T)}
   </div>
+  ${bkBanner()}
   ${fazitCard()}
 
   <div class="split">
@@ -826,7 +950,8 @@ function renderHome(){
     <div class="between"><b style="font-size:14px">Diese Woche <span class="dim" style="font-weight:600">· Rückblick ›</span></b><span class="dim" style="font-size:12px">${wk.filter(x=>getDay(x).workouts.length).length} Trainings · Ø ${fmt(avg)} kcal</span></div>
     <div style="margin-top:10px">${ch.svg}</div>
     <div class="legend"><span><i style="background:var(--orange)"></i>Gegessen</span><span><i style="background:var(--lime)"></i>Training</span><span><i style="background:transparent;border-top:2px dashed var(--tx3);height:0;border-radius:0"></i>Ziel</span></div>
-  </div>`;
+  </div>
+  <button class="card fz" style="margin-top:12px" data-act="stats"><span class="fzr" style="--c:var(--lime);--p:100;font-size:22px"><b>📈</b></span><span class="t"><small>Verlauf</small><b>Statistik</b><span class="dim" style="font-size:12px">Gewicht, Kalorien, Protein, Training & Kraft über Monate</span></span><span class="dim">›</span></button>`;
 }
 
 /* ================= GYM ================= */
@@ -979,7 +1104,7 @@ function openFoodSheet(meal,tab){ FS={meal:meal||defMeal(),tab:tab||'db',q:'',se
 function foodSearch(q){ const all=[...S.custom.map(c=>({...c,custom:true})),...FOODS]; if(!q) return all.slice(0,40); const toks=norm(q).split(/[\s,]+/).filter(Boolean); const hay=f=>norm(f.n+' '+(f.cat||'')); const pos=f=>{const i=norm(f.n).indexOf(toks[0]);return i<0?99:i}; return all.filter(f=>toks.every(t=>hay(f).includes(t))).sort((a,b)=>pos(a)-pos(b)).slice(0,60); }
 function mealChips(){ return `<div class="chips" style="margin:14px 0">${MEALS.map(m=>`<button class="chip ${FS.meal===m[0]?'on-orange':''}" data-act="fs-meal" data-m="${m[0]}">${m[2]} ${m[1]}</button>`).join('')}</div>`; }
 function drawFoodSheet(){
-  const sh=$('#sheet-root .sheet'); if(!sh) return;
+  scanStop(); const sh=$('#sheet-root .sheet'); if(!sh) return;
   if(FS.shake){ sh.innerHTML=shakeHtml(); updShake(); return; }
   if(FS.sel){ const f=FS.sel, g=FS.g;
     sh.innerHTML=`<div class="grab"></div><div class="sheet-h"><button class="x" data-act="fs-back" aria-label="Zurück">${I.chevL}</button><div style="flex:1;min-width:0"><h2 style="font-size:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.n)}</h2><div class="hint">${fmt(f.k)} kcal je 100 g · P ${r1(f.p)} · K ${r1(f.c)} · F ${r1(f.f)}</div></div>${FS.editId?'':`<button class="x" data-act="fs-fav" aria-label="Favorit" style="color:${isFav(f)?'var(--carb)':'var(--tx3)'};font-size:18px">${isFav(f)?'★':'☆'}</button>`}<button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
@@ -992,7 +1117,7 @@ function drawFoodSheet(){
     updNut(); return; }
   const seg=`<div class="seg"><button class="${FS.tab==='db'?'on':''}" data-act="fs-tab" data-t="db">Datenbank</button><button class="${FS.tab==='ai'?'on':''}" data-act="fs-tab" data-t="ai">✦ KI</button><button class="${FS.tab==='own'?'on':''}" data-act="fs-tab" data-t="own">Eigenes</button></div>`;
   let body='';
-  if(FS.tab==='db'){ body=`<div class="grid2" style="margin-bottom:10px"><button class="btn ghost sm" style="height:42px" data-act="shake">🥤 Shake mixen</button><button class="btn ghost sm" style="height:42px" data-act="fs-qset" data-q="protein">💪 Protein-Produkte</button></div><div class="search">${I.search}<input class="inp" id="fs-q" placeholder="z. B. Haferflocken, Döner, Skyr …" value="${esc(FS.q)}" data-in="fs-q" autocomplete="off"></div><div class="foodlist list" id="fs-list" style="margin-top:6px">${foodListHtml()}</div>`; }
+  if(FS.tab==='db'){ body=`<button class="btn orange block" style="margin-bottom:10px;height:46px" data-act="scan">${I.scan} Barcode scannen</button><div class="grid2" style="margin-bottom:10px"><button class="btn ghost sm" style="height:42px" data-act="shake">🥤 Shake mixen</button><button class="btn ghost sm" style="height:42px" data-act="fs-qset" data-q="protein">💪 Protein-Produkte</button></div><div class="search">${I.search}<input class="inp" id="fs-q" placeholder="z. B. Haferflocken, Döner, Skyr …" value="${esc(FS.q)}" data-in="fs-q" autocomplete="off"></div><div class="foodlist list" id="fs-list" style="margin-top:6px">${foodListHtml()}</div><div class="foodlist list" id="fs-off"></div>`; }
   else if(FS.tab==='ai'){ body=AI_OK?aiHtml():aiSetupHtml(); }
   else { body=`<div class="field"><label>Name</label><input class="inp" id="own-n" placeholder="z. B. Omas Gulasch"></div>
     <div class="grid2"><div class="field"><label>kcal je 100 g</label><input class="inp" id="own-k" type="number" inputmode="decimal"></div><div class="field"><label>Portion (g)</label><input class="inp" id="own-pg" type="number" inputmode="decimal" placeholder="100"></div></div>
@@ -1000,6 +1125,7 @@ function drawFoodSheet(){
     <p class="hint">Werte stehen auf der Verpackung unter „Nährwerte je 100 g“. Dein Lebensmittel erscheint danach ganz oben in der Suche.</p>
     <button class="btn orange block" data-act="own-save">Speichern & Menge wählen</button>`; }
   sh.innerHTML=`<div class="grab"></div><div class="sheet-h"><h2>Essen hinzufügen</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>${seg}${body}`;
+  if(FS.tab==='db'&&FS.q) offKick();
 }
 function updNut(){ const el=$('#fs-nut'); if(!el||!FS.sel) return; const f=FS.sel, g=+FS.g||0; el.innerHTML=`<div><div class="v num">${fmt(f.k*g/100)}</div><small>kcal</small></div><div><div class="v num" style="color:var(--prot)">${r1(f.p*g/100).toLocaleString('de-DE')}</div><small>Protein</small></div><div><div class="v num" style="color:var(--carb)">${r1(f.c*g/100).toLocaleString('de-DE')}</div><small>Kohlenh.<br><span style="color:var(--sug)">${r1(zOf(f)*g/100).toLocaleString('de-DE')} Zucker</span></small></div><div><div class="v num" style="color:var(--fat)">${r1(f.f*g/100).toLocaleString('de-DE')}</div><small>Fett</small></div>`; }
 function aiHtml(){
@@ -1043,7 +1169,7 @@ Antworte ausschließlich mit JSON in genau diesem Format:
 
 /* ================= SHEETS ================= */
 function openSheet(html){ const root=$('#sheet-root'); root.innerHTML=`<div class="scrim" data-act="close-sheet"></div><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`; root.classList.add('open'); requestAnimationFrame(()=>requestAnimationFrame(()=>root.classList.add('show'))); clearTimeout(openSheet.t); openSheet.t=setTimeout(()=>root.classList.add('ready'),360);  }
-function closeSheet(){ const root=$('#sheet-root'); clearTimeout(openSheet.t); root.classList.remove('ready'); void root.offsetWidth; root.classList.remove('show');  setTimeout(()=>{ if(!root.classList.contains('show')){root.classList.remove('open'); root.innerHTML=''} },300); FS=null; }
+function closeSheet(){ scanStop(); const root=$('#sheet-root'); clearTimeout(openSheet.t); root.classList.remove('ready'); void root.offsetWidth; root.classList.remove('show');  setTimeout(()=>{ if(!root.classList.contains('show')){root.classList.remove('open'); root.innerHTML=''} },300); FS=null; }
 function confirmSheet(title,text,okLabel,onOk,danger=true){ openSheet(`<div class="sheet-h"><h2>${title}</h2></div><p class="muted" style="margin:0 0 18px">${text}</p><div class="grid2"><button class="btn ghost" data-act="close-sheet">Abbrechen</button><button class="btn ${danger?'danger':'lime'}" id="cf-ok">${okLabel}</button></div>`); $('#cf-ok').onclick=()=>{closeSheet();onOk()}; }
 
 let PICK={q:'',g:'Alle'};
@@ -1092,7 +1218,8 @@ function openProfile(){ const p=S.profile;
 let PDRAFT={};
 function readProfile(){ const n=id=>+$(id).value; return {...S.profile,name:$('#p-name').value.trim(),sex:PDRAFT.sex,goal:PDRAFT.goal,age:n('#p-age')||S.profile.age,height:n('#p-height')||S.profile.height,weight:n('#p-weight')||S.profile.weight,activity:+$('#p-act').value,rest:n('#p-rest')||90,waterGoal:n('#p-water')||2500}; }
 function updProfileRes(){ const el=$('#p-res'); if(!el) return; const T=targets(readProfile());
-  el.innerHTML=`Grundumsatz <b>${fmt(T.bmr)}</b> kcal · Alltag <b>${fmt(T.tdee)}</b> kcal<br>Tagesziel <b style="color:var(--lime)">${fmt(T.kcal)} kcal</b> + was du im Training verbrennst<br>Protein <b>${T.protein} g</b> · Kohlenhydrate <b>${T.carbs} g</b> · Fett <b>${T.fat} g</b><br><span class="dim">Berechnet nach Mifflin-St Jeor.</span>`; }
+  el.innerHTML=`Grundumsatz <b>${fmt(T.bmr)}</b> kcal · Alltag <b>${fmt(T.tdee)}</b> kcal<br>Tagesziel <b style="color:var(--lime)">${fmt(T.kcal)} kcal</b> + was du im Training verbrennst<br>Protein <b>${T.protein} g</b> · Kohlenhydrate <b>${T.carbs} g</b> · Fett <b>${T.fat} g</b><br><span class="dim">${S.profile.adapt&&adaptEst().ok?'Verbrauch aus deinen echten Daten berechnet.':'Berechnet nach Mifflin-St Jeor.'}</span>${adaptHtml()}`; }
+function adaptHtml(){ const a=adaptEst(); return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">${a.ok?`📈 <b>Aus deinen Daten:</b> Verbrauch ≈ <b>${fmt(a.tdee)} kcal</b> <span class="dim">(Formel ${fmt(a.formula)})</span><br><span class="dim">${a.days} Tage Ø ${fmt(a.intake)} kcal · Gewicht ${a.slope>=0?'+':''}${r1(a.slope*7).toLocaleString('de-DE')} kg/Woche</span><br><button class="chip ${S.profile.adapt?'on-lime':''}" style="margin-top:8px" data-act="adapt">${S.profile.adapt?'✓ Ziel passt sich automatisch an':'Ziel automatisch anpassen'}</button>`:`📈 <b>Automatische Anpassung</b><br><span class="dim">Sobald genug Daten da sind, berechnet FORGE deinen echten Verbrauch. Noch nötig in den letzten 4 Wochen: ${Math.min(a.days,10)}/10 Tage Essen · ${Math.min(a.w,3)}/3 Gewichtseinträge über mind. 10 Tage.</span>`}</div>`; }
 
 /* ================= RÜCKGÄNGIG ================= */
 const PFIELDS=['profile','custom','templates','active','body','fav','meals','plan','avail','cex'];
@@ -1396,7 +1523,7 @@ const A={
   'close-sheet':()=>closeSheet(),
   'p-sex':el=>{PDRAFT.sex=el.dataset.v; el.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===el)); updProfileRes()},
   'p-goal':el=>{PDRAFT.goal=el.dataset.v; el.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===el)); updProfileRes()},
-  'bk-export':async()=>{ const data=JSON.stringify({...S,active:null},null,0); const name='forge-backup-'+today()+'.json';
+  'bk-export':async()=>{ try{ localStorage.setItem('forge.bk',String(Date.now())); }catch(e){} const data=JSON.stringify({...S,active:null},null,0); const name='forge-backup-'+today()+'.json';
     try{ const blob=new Blob([data],{type:'application/json'}); const file=new File([blob],name,{type:'application/json'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:'FORGE Backup'}); return; }
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); toast('Backup gespeichert'); }
@@ -1448,7 +1575,7 @@ const A={
     $('#wd-del').onclick=()=>{ const dk=el.dataset.day; closeSheet(); undoable(['d'+dk],()=>{ const d=ensureDay(dk); d.workouts=d.workouts.filter(x=>x.id!==w.id); },'Training gelöscht'); }; },
   'food-add':el=>openFoodSheet(el.dataset.meal,el.dataset.tab),
   'fs-tab':el=>{ if(el.dataset.carry&&FS.q) FS.aiText=FS.q; FS.tab=el.dataset.t; drawFoodSheet(); },
-  'fs-pick':el=>{ const id=el.dataset.id; const f=FS.lookup[id]||(S.custom.find(c=>c.id===id)?{...S.custom.find(c=>c.id===id),custom:true}:FOODS.find(x=>x.id===id)); if(!f) return; FS.sel=f; FS.g=f.pg||100; drawFoodSheet(); },
+  'fs-pick':el=>{ const id=el.dataset.id; const f=FS.lookup[id]||OFFC[id]||(S.custom.find(c=>c.id===id)?{...S.custom.find(c=>c.id===id),custom:true}:FOODS.find(x=>x.id===id)); if(!f) return; FS.sel=f; FS.g=f.pg||100; drawFoodSheet(); },
   'fs-back':()=>{ FS.sel=null; FS.editId=null; drawFoodSheet(); },
   'fs-g':el=>{ FS.g=+el.dataset.g; $('#fs-g').value=FS.g; updNut(); },
   'fs-meal':el=>{ FS.meal=el.dataset.m; el.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on-orange',c===el)); const b=$('[data-act="fs-add"]'); if(b) b.innerHTML=I.plus+' Zu '+MEALS.find(m=>m[0]===FS.meal)[1]+' hinzufügen'; },
@@ -1535,7 +1662,7 @@ const IN={
   calc:el=>{ const k=el.dataset.k; if(k==='eid'){ CALC.eid=el.value; const ex=EX[CALC.eid]; if(ex.t==='bw'&&CALC.kg===60) CALC.kg=0; if(ex.t==='w'&&CALC.kg===0) CALC.kg=20; $('#calc-f').innerHTML=calcFields(); } else CALC[k]=+el.value||0; $('#calc-r').innerHTML=fmt(calcResult())+'<span>kcal</span>'; },
   set:el=>{ const s=S.active.ex[+el.dataset.i].sets[+el.dataset.j]; s[el.dataset.f]=el.value===''?null:+el.value; touch('profile'); updateActive(); },
   wname:el=>{ S.active.name=el.value; touch('profile'); },
-  'fs-q':el=>{ FS.q=el.value; $('#fs-list').innerHTML=foodListHtml(); },
+  'fs-q':el=>{ FS.q=el.value; $('#fs-list').innerHTML=foodListHtml(); offKick(); },
   'fs-g':el=>{ FS.g=+el.value||0; updNut(); },
   'ai-t':el=>{ FS.aiText=el.value; },
   'ai-g':el=>{ const x=FS.ai.items[+el.dataset.i], g=+el.value||0, b=x.base, f=b.g?g/b.g:0; x.grams=g; x.kcal=b.k*f; x.protein=b.p*f; x.carbs=b.c*f; x.fat=b.f*f; x.sugar=(b.z||0)*f; $('#ai-k-'+el.dataset.i).textContent=fmt(x.kcal); $('#ai-tot').innerHTML=fmt(sum(FS.ai.items.filter(i=>i.on),i=>i.kcal))+'<span>kcal</span>'; },
@@ -1572,7 +1699,13 @@ function aiSetupHtml(){ return `<div class="info" style="line-height:1.6"><b>KI 
   <button class="btn ghost block" style="margin:-4px 0 10px" data-act="ai-paste">📋 Aus Zwischenablage einfügen</button><div></div>
   <button class="btn orange block" data-act="ai-key-save">${I.spark} Speichern & KI aktivieren</button>
   <p class="hint" style="margin-top:10px">Der Schlüssel bleibt nur auf diesem Gerät. Danach kannst du jedes Essen beschreiben oder fotografieren.</p>`; }
-Object.assign(A,{'push-on':async el=>{ if(!isStandalone()){ toast('Nur in der App vom Homescreen möglich'); return; }
+Object.assign(A,{'scan':()=>openScanner(),
+  'scan-back':()=>{ scanStop(); drawFoodSheet(); },
+  'scan-manual':()=>{ const el=$('#scan-code'), c=(el.value||'').replace(/\D/g,''); if(c.length<6){ bad(el); return; } scanStop(); scanLookup(c); },
+  'adapt':()=>{ S.profile.adapt=!S.profile.adapt; ADC=null; touch('profile'); updProfileRes(); renderAll(); },
+  'stats':()=>openStats(),
+  'st-r':el=>{ STR=el.dataset.r; drawStats(); },
+  'push-on':async el=>{ if(!isStandalone()){ toast('Nur in der App vom Homescreen möglich'); return; }
     el.disabled=true; el.textContent='Einen Moment …';
     try{ const perm=await Notification.requestPermission(); if(perm!=='granted'){ toast('Mitteilungen wurden nicht erlaubt'); el.disabled=false; el.textContent='🔔 Benachrichtigung um 21:30 aktivieren'; return; }
       const reg=await navigator.serviceWorker.ready; const sub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidU8(VAPID_PUB)});
