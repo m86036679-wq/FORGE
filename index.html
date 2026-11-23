@@ -548,7 +548,7 @@ const GOALS = [['cut','Abnehmen',-450],['maintain','Halten',0],['bulk','Muskelau
 
 /* ================= STATE & SPEICHER ================= */
 const LS_KEY='forge.v1';
-const DEF_PROFILE={name:'Max',sex:'m',age:18,height:180,weight:75,activity:1.375,goal:'maintain',rest:90,waterGoal:2500,setup:false};
+const DEF_PROFILE={name:'',sex:'m',age:18,height:180,weight:75,activity:1.375,goal:'maintain',rest:90,waterGoal:2500,setup:false};
 const DEF_AVAIL={eq:['lh','kh','ma','kz','st','ca'],on:[],off:[]};
 let S={profile:{...DEF_PROFILE},custom:[],templates:[],active:null,days:{},meta:{},body:{w:[],m:[]},fav:[],meals:[],plan:null,avail:clone0(DEF_AVAIL),photos:{},cex:[]};
 function clone0(o){return JSON.parse(JSON.stringify(o))}
@@ -620,14 +620,16 @@ async function kvGet(id){ let err, nf=0; for(const u of KV_URLS){ try{ const r=a
 async function kvPut(id,body){ const rs=await Promise.allSettled(KV_URLS.map(u=>fetch(u+id,{method:'PUT',body}).then(r=>{ if(!r.ok) throw r.status; }))); if(rs.some(r=>r.status==='fulfilled')) return true; throw {code:'net'}; }
 async function encJSON(key,obj){ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,te.encode(JSON.stringify(obj)))); return 'F1.'+u8b64(iv)+'.'+u8b64(ct); }
 async function decJSON(key,txt){ const [v,iv,ct]=String(txt).split('.'); if(v!=='F1') throw {code:'format'}; const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64u8(iv)},key,b64u8(ct)); return JSON.parse(td.decode(pt)); }
-function accDocs(){ const o={}; const keys=new Set(['profile',...Object.keys(S.days).map(d=>'d'+d),...Object.keys(S.meta).filter(k=>k[0]==='d')]); keys.forEach(k=>{ o[k]=docBody(k); }); return o; }
+function accDocs(){ const o={}; const keys=new Set(['profile',...Object.keys(S.days).map(d=>'d'+d),...Object.keys(S.meta).filter(k=>k[0]==='d')]); keys.forEach(k=>{ o[k]=docBody(k); }); if(o.profile) o.profile.groq=groqKey()||null; return o; }
+function accNameFix(n){ const p=S.profile, nm=(p.name||'').trim(); const typed=n.trim().charAt(0).toUpperCase()+n.trim().slice(1); if(!nm||(nm==='Max'&&n.trim().toLowerCase()!=='max'&&!p.setup)){ p.name=typed; touch('profile'); } }
 function accApply(docs){ let changed=false, localNewer=false;
   Object.entries(docs||{}).forEach(([k,data])=>{ if(!data) return; const lt=S.meta[k]||0, rt=data.updated||0;
     if(rt>lt){ changed=true;
       if(k==='profile'){ S.profile={...DEF_PROFILE,...(data.profile||{})}; S.custom=data.custom||[]; S.templates=data.templates||[]; S.active=data.active||null; S.body={w:[],m:[],...(data.body||{})}; S.fav=data.fav||[]; S.meals=data.meals||[]; S.plan=data.plan||null; S.avail={...DEF_AVAIL,...(data.avail||{})}; S.cex=data.cex||[]; }
       else if(k[0]==='d'){ S.days[k.slice(1)]={food:data.food||[],workouts:data.workouts||[],water:data.water||0}; }
       S.meta[k]=rt; }
-    else if(lt>rt) localNewer=true; });
+    else if(lt>rt) localNewer=true;
+    if(k==='profile'&&data.groq&&!groqKey()){ try{ localStorage.setItem('forge.groq',data.groq); AI_OK=true; }catch(e){} } });
   const local=accDocs(); if(Object.keys(local).some(k=>!(docs||{})[k]&&S.meta[k])) localNewer=true;
   return {changed,localNewer}; }
 async function accPush(){ if(!ACC) return; if(accBusy){ clearTimeout(accT); accT=setTimeout(accPush,2000); return; } accBusy=true;
@@ -1717,8 +1719,8 @@ Object.assign(A,{'scan':()=>openScanner(),
     el.disabled=true; el.textContent='Verbinde …';
     try{ const d=await accDerive(n,pw); const txt=await kvGet(d.id);
       const finish=async(create)=>{ ACC={n,id:d.id,k:d.raw,last:0}; ACC_KEY=d.key; localStorage.setItem('forge.acct',JSON.stringify(ACC));
-        if(!create){ const o=await decJSON(d.key,txt); const r=accApply(o.docs); saveLocal(); if(r.localNewer) await accPush(); else { ACC.last=Date.now(); localStorage.setItem('forge.acct',JSON.stringify(ACC)); setSync(true); } }
-        else await accPush();
+        if(!create){ const o=await decJSON(d.key,txt); const r=accApply(o.docs); saveLocal(); if(r.localNewer) await accPush(); else { ACC.last=Date.now(); localStorage.setItem('forge.acct',JSON.stringify(ACC)); setSync(true); } accNameFix(n); }
+        else { accNameFix(n); await accPush(); }
         closeSheet(); renderAll(); if(S.active) startTicker(); toast(create?'Konto erstellt':'Angemeldet · Daten geladen'); };
       if(txt) await finish(false);
       else confirmSheet('Neues Konto erstellen?',`Unter „${esc(n)}“ mit diesem Passwort gibt es noch kein Konto. Falls du dich vertippt hast, geh zurück. Merk dir dein Passwort gut – es kann nicht zurückgesetzt werden.`,'Erstellen',()=>finish(true).catch(()=>toast('Keine Verbindung – später nochmal versuchen')),false);
@@ -1736,7 +1738,7 @@ Object.assign(A,{'scan':()=>openScanner(),
     S.cex=CX.id?(S.cex||[]).map(x=>x.id===id?e:x):[...(S.cex||[]),e]; syncCex(); touch('profile');
     if(CX.from==='picker') A['pk-add']({dataset:{id}}); else { closeSheet(); renderAll(); } },
   'cx-del':el=>{ const id=el.dataset.id; closeSheet(); undoable(['profile'],()=>{ S.cex=(S.cex||[]).filter(e=>e.id!==id); },'Übung gelöscht'); },
-  'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
+  'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; touch('profile'); drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
 /* ================= START ================= */
 (function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud(); if(ACC){ setSync(!!ACC.last); accPull(true); } if(h==='fazit') setTimeout(()=>openFazit(),300); else setTimeout(fazitAuto,800); if(PUSHK) setTimeout(()=>pushWrite(),3000); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ accPull(); setTimeout(fazitAuto,500); } else if(PUSHK) pushWrite(); else if(ACC&&accT){ clearTimeout(accT); accPush(); } });
   try{ if('serviceWorker' in navigator && window.top===window && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} })();
