@@ -576,6 +576,43 @@ button.card{text-align:left;width:100%;font:inherit;color:var(--tx)}
   html.desk .sheet{max-height:92%}
   html.desk .foodlist{max-height:440px}
 }
+
+/* ===== v37: Konto zuerst, sportlicher, aufgeräumt ===== */
+.kc{font-weight:900;font-stretch:66%;letter-spacing:-1.5px}
+.num,.kc,.sets input,.stats3 b,td,th{font-variant-numeric:tabular-nums}
+.sec-h{margin:24px 2px 12px}
+.card{padding:16px}.card+.card{margin-top:12px}
+.hint,.sub{color:var(--tx3);font-size:12px}
+.plus-s{width:44px;height:44px}.plus-s svg{width:18px;height:18px}
+.sets input{height:48px;max-width:84px;font-size:22px;font-weight:800;border-radius:12px}
+.sets td{padding:3px}
+.sets th{font-size:10px}
+.grid2>*,.grid3>*,.stats3>*{min-width:0}
+.stats3>.card,.grid2>.card{height:100%}
+.btn.sm{height:46px}
+.acc-card{display:flex;align-items:center;gap:14px}
+.acc-av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-family:var(--kcf);font-weight:900;font-size:22px;color:#14213D;background:linear-gradient(135deg,#FF6B59,#FF9A76);flex:none}
+.acc-t{display:flex;flex-direction:column;min-width:0}.acc-t b{font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-t small{font-size:12px;color:var(--tx3);display:flex;align-items:center;gap:6px;margin-top:2px}
+.acc-dot{width:6px;height:6px;border-radius:50%;background:var(--tx3)}.acc-dot.ok{background:#7DE0A6}
+.acc-go{height:48px;margin-top:12px;background:linear-gradient(135deg,#FF6B59,#FF9A76)!important;color:#14213D!important}
+.psec{border-top:1px solid var(--line2)}.psec:first-of-type{border-top:0}
+.psec summary{display:flex;align-items:center;gap:10px;min-height:56px;cursor:pointer;list-style:none;-webkit-tap-highlight-color:transparent}
+.psec summary::-webkit-details-marker{display:none}
+.psec summary span{font-size:16px;font-weight:600}
+.psec summary small{flex:1;min-width:0;text-align:right;font-size:12px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.psec[open] .chev{transform:rotate(180deg);color:var(--tx)}
+.psec-b{padding:2px 0 18px}
+.psec-b .field{margin-bottom:12px}
+#welcome{position:fixed;inset:0;z-index:55;overflow-y:auto;background:var(--atmo),#14213D;background-color:#14213D;display:flex}
+html.desk #welcome{position:absolute}
+.wl-in{margin:auto;width:100%;max-width:420px;min-height:100%;padding:calc(var(--safe-t) + 24px) var(--pad) calc(var(--safe-b) + 28px);display:flex;flex-direction:column;justify-content:space-between;gap:32px}
+.wl-top{padding-top:12vh}
+.wl-mark{font-family:var(--kcf);font-weight:900;font-stretch:62%;font-size:96px;line-height:.85;letter-spacing:-2px}
+.wl-tag{margin:16px 0 0;font-size:17px;line-height:1.35;color:var(--tx2);max-width:340px}
+.wl-form{display:flex;flex-direction:column;gap:12px}
+.wl-form .acc-go{margin-top:4px;height:54px;font-size:16px}
+.wl-skip{height:48px;font-size:15px;font-weight:600;color:var(--tx2)}
 </style>
 </head>
 <body>
@@ -832,11 +869,16 @@ async function accPull(force){ if(!ACC||accBusy) return; if(!force&&Date.now()-a
   accBusy=false;
   if(res){ if(res.changed){ saveLocal(); renderAll(); if(S.active) startTicker(); } if(res.localNewer) accPush(); } }
 function accSchedule(){ if(!ACC) return; clearTimeout(accT); accT=setTimeout(accPush,5000); }
-function accBlock(){ if(ACC) return `<div class="info" style="margin-bottom:14px;display:flex;align-items:center;gap:12px"><span style="font-size:22px"></span><span style="flex:1;min-width:0"><b>Angemeldet als ${esc(ACC.n)}</b><br><span class="dim" style="font-size:12px">${ACC.last?'Zuletzt synchronisiert '+new Date(ACC.last).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'Noch nicht synchronisiert'}</span></span></div>
-  <div class="grid2" style="margin-bottom:18px"><button class="btn ghost sm" style="height:42px" data-act="acc-sync">Synchronisieren</button><button class="btn ghost sm" style="height:42px" data-act="acc-out">Abmelden</button></div>`;
-  return `<div class="card" style="padding:14px;margin-bottom:16px;background:var(--s2)"><b style="font-size:14px">Konto – auf allen Geräten</b><p class="hint" style="margin:4px 0 10px">Melde dich auf jedem Gerät mit demselben Namen und Passwort an. Deine Daten werden verschlüsselt gespeichert.</p>
-  <div class="grid2"><input class="inp" id="acc-n" placeholder="Name" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"><input class="inp" id="acc-p" type="password" placeholder="Passwort" autocomplete="current-password"></div>
-  <button class="btn lime block" style="margin-top:10px;height:44px" data-act="acc-in">Anmelden / Konto erstellen</button></div>`; }
+function accBlock(){ if(ACC) return `<div class="acc-card"><span class="acc-av">${esc((ACC.n||'?').charAt(0).toUpperCase())}</span><span class="acc-t"><b>${esc(ACC.n)}</b><small><i class="acc-dot ${ACC.last?'ok':''}"></i>${ACC.last?'Synchronisiert '+new Date(ACC.last).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'Noch nicht synchronisiert'}</small></span></div>
+  <div class="grid2" style="margin-top:12px"><button class="btn ghost sm" data-act="acc-sync">Synchronisieren</button><button class="btn ghost sm" data-act="acc-out">Abmelden</button></div>`;
+  return `<div class="grid2"><input class="inp" id="acc-n" placeholder="Name" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"><input class="inp" id="acc-p" type="password" placeholder="Passwort" autocomplete="current-password"></div>
+  <button class="btn lime block acc-go" data-act="acc-in">Anmelden / Konto erstellen</button><div class="hint" style="margin-top:8px">Gleicher Name und Passwort auf jedem Gerät. Verschlüsselt gespeichert.</div>`; }
+function showWelcome(){ if($('#welcome')) return; const w=document.createElement('div'); w.id='welcome';
+  w.innerHTML=`<div class="wl-in"><div class="wl-top"><div class="wl-mark">FORGE</div><p class="wl-tag">Dein Training. Deine Ernährung. Ein Ort.</p></div>
+  <div class="wl-form"><input class="inp" id="acc-n" placeholder="Name" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"><input class="inp" id="acc-p" type="password" placeholder="Passwort" autocomplete="current-password">
+  <button class="btn lime block acc-go" data-act="acc-in">Anmelden / Konto erstellen</button><button class="wl-skip" data-act="welcome-skip">Ohne Konto fortfahren</button></div></div>`;
+  ($('#screen')||document.body).appendChild(w); const pw=$('#acc-p'); pw.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); w.querySelector('[data-act=acc-in]').click(); } }); }
+function closeWelcome(){ const w=$('#welcome'); if(w) w.remove(); }
 
 /* ================= TAGESFAZIT ================= */
 function dayScore(k){ const d=getDay(k), T=targets(); if(!d.food.length&&!d.workouts.length) return null;
@@ -1416,37 +1458,29 @@ function drawPicker(){ const sh=$('#sheet-root .sheet'); if(!sh) return; const n
   <div class="list foodlist" id="pk-list">${pickList(list)}</div>`; }
 function pickList(list){ return list.map(e=>{const p=prevSets(e.id); return `<button class="li" data-act="pk-add" data-id="${e.id}"><span class="av" style="color:${e.t==='cardio'?'var(--orange)':'var(--lime)'}">${e.t==='cardio'?'':I.dumb}</span><span class="m"><b>${esc(e.n)}${e.custom?' <span class="tag orange" style="margin-left:4px">Eigene</span>':''}</b><small>${e.g}${p?' · zuletzt '+prevLabel(e,p[0]):''}</small></span><span class="r" style="color:var(--lime)">${I.plus}</span></button>`}).join('')||'<p class="empty">Keine Übung gefunden.</p>'; }
 
-function openProfile(){ const p=S.profile; const ps=t=>`<div style="margin:24px 2px 10px;padding-top:14px;border-top:1px solid rgba(244,237,224,.1);font-size:11px;font-weight:800">${t}</div>`;
+function openProfile(){ const p=S.profile; const sec=(t,sub,body,open)=>`<details class="psec"${open?' open':''}><summary><span>${t}</span><small>${sub||''}</small><i class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></i></summary><div class="psec-b">${body}</div></details>`;
   const ch=(k,v,l,cur)=>`<button class="chip ${cur===v?'on':''}" data-act="p-set" data-k="${k}" data-v="${v}">${l}</button>`;
   const num=(id,l,v,ph='',st='1',mode='decimal')=>`<div class="field"><label>${l}</label><input class="inp" id="${id}" type="number" inputmode="${mode}" step="${st}" value="${v==null||v===0?'':v}" placeholder="${ph}" data-in="p-live"></div>`;
   const hm=p.home||{}; const HS=[['donut','Makro-Donut'],['week','Kalorien 7 Tage'],['train','Training-Karte'],['links','Tagesfazit und Statistik'],['weight','Körpergewicht']];
-  openSheet(`<div class="sheet-h"><h2>Dein Profil</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
-  ${ps('Körper')}
-  <div class="field"><label>Name</label><input class="inp" id="p-name" value="${esc(p.name)}"></div>
+  const grp=(items)=>`<div class="grid2">${items}</div>`;
+  const key=SAMPLE?'':PROXY_OK?'':`<div class="field" style="margin-top:12px"><label>KI-Schlüssel (optional)</label><input class="inp" id="p-groq" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="gsk_…" value="${esc(groqKey())}"><div class="hint" style="margin-top:6px">Kostenlos auf console.groq.com. Bleibt nur auf diesem Gerät.</div></div>`;
+  openSheet(`<div class="sheet-h"><h2>Profil</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
+  ${sec('Konto',ACC?'Angemeldet':'Nicht angemeldet',accBlock(),true)}
+  ${sec('Körper',esc(p.name||'')+(p.weight?' · '+p.weight+' kg':''),`<div class="field"><label>Name</label><input class="inp" id="p-name" value="${esc(p.name)}"></div>
   <div class="field"><label>Geschlecht</label><div class="chips"><button class="chip ${p.sex==='m'?'on':''}" data-act="p-sex" data-v="m">Männlich</button><button class="chip ${p.sex==='f'?'on':''}" data-act="p-sex" data-v="f">Weiblich</button></div></div>
   <div class="grid3"><div class="field"><label>Alter</label><input class="inp" id="p-age" type="number" inputmode="numeric" value="${p.age}" data-in="p-live"></div><div class="field"><label>Größe cm</label><input class="inp" id="p-height" type="number" inputmode="numeric" value="${p.height}" data-in="p-live"></div><div class="field"><label>Gewicht kg</label><input class="inp" id="p-weight" type="number" inputmode="decimal" value="${p.weight}" data-in="p-live"></div></div>
-  <div class="field"><label>Alltag (ohne Training)</label><select class="inp" id="p-act" data-in="p-live">${ACT.map(a=>`<option value="${a[0]}" ${a[0]==p.activity?'selected':''}>${a[1]} – ${a[2]}</option>`).join('')}</select></div>
-  ${ps('Ziel')}
-  <div class="field"><label>Ziel</label><div class="chips">${GOALS.map(g=>`<button class="chip ${p.goal===g[0]?'on':''}" data-act="p-goal" data-v="${g[0]}">${g[1]}</button>`).join('')}</div></div>
-  <div class="grid2">${num('p-goalkg','Zielgewicht (kg)',p.goalKg,'optional','0.1')}${num('p-pace','Wunschtempo (kg/Woche)',p.pace,'z. B. -0,5','0.05')}</div>
-  <div class="hint" style="margin:-4px 0 4px">Mit Wunschtempo ersetzt es die Standard-Anpassung deines Ziels (−0,75 bis +0,5). Leer lassen für den Standard.</div>
-  ${ps('Ernährung')}
-  <div class="grid2">${num('p-protkg','Protein (g pro kg)',p.protKg,'Standard','0.1')}${num('p-fatpct','Fett (% der kcal)',p.fatPct,'28','1','numeric')}</div>
-  <div class="grid2">${num('p-sugar','Zucker-Maximum (g)',p.sugarMax,'Standard','1','numeric')}${num('p-water','Wasserziel (ml)',p.waterGoal,'2500','50','numeric')}</div>
-  <div class="hint" style="margin:-4px 0 4px">Protein 1,2 bis 2,5 g/kg, Fett 20 bis 40 %. Kohlenhydrate sind der Rest.</div>
-  ${ps('Training')}
-  <div class="field"><label>Trainingstage pro Woche</label><div class="chips">${[1,2,3,4,5,6].map(n=>ch('td',n,n,+p.trainDays)).join('')}</div></div>
+  <div class="field"><label>Alltag (ohne Training)</label><select class="inp" id="p-act" data-in="p-live">${ACT.map(a=>`<option value="${a[0]}" ${a[0]==p.activity?'selected':''}>${a[1]} – ${a[2]}</option>`).join('')}</select></div>`)}
+  ${sec('Ziel',(GOALS.find(g=>g[0]===p.goal)||[])[1]||'',`<div class="field"><div class="chips">${GOALS.map(g=>`<button class="chip ${p.goal===g[0]?'on':''}" data-act="p-goal" data-v="${g[0]}">${g[1]}</button>`).join('')}</div></div>
+  ${grp(num('p-goalkg','Zielgewicht (kg)',p.goalKg,'optional','0.1')+num('p-pace','Tempo (kg/Woche)',p.pace,'z. B. -0,5','0.05'))}`)}
+  ${sec('Ernährung','Makros, Wasser',`${grp(num('p-protkg','Protein (g/kg)',p.protKg,'Standard','0.1')+num('p-fatpct','Fett (% kcal)',p.fatPct,'28','1','numeric'))}
+  ${grp(num('p-sugar','Zucker max. (g)',p.sugarMax,'Standard','1','numeric')+num('p-water','Wasser (ml)',p.waterGoal,'2500','50','numeric'))}
+  <div class="info" id="p-res"></div>`)}
+  ${sec('Training',(p.trainDays||3)+' Tage pro Woche',`<div class="field"><label>Tage pro Woche</label><div class="chips">${[1,2,3,4,5,6].map(n=>ch('td',n,n,+p.trainDays)).join('')}</div></div>
   <div class="field"><label>Erfahrung</label><div class="chips">${[['low','Anfänger'],['mid','Fortgeschritten'],['pro','Profi']].map(([v,l])=>ch('lvl',v,l,p.level)).join('')}</div></div>
-  <div class="grid2">${num('p-rest','Satzpause (Sek.)',p.rest,'90','5','numeric')}<div class="field"><label>Wochenstart</label><div class="chips">${ch('ws','mon','Montag',p.weekStart)}${ch('ws','sun','Sonntag',p.weekStart)}</div></div></div>
-  ${ps('Startseite')}
-  <div class="chips" style="flex-wrap:wrap">${HS.map(([k,l])=>`<button class="chip ${hm[k]!==false?'on':''}" data-act="p-home" data-k="${k}">${l}</button>`).join('')}</div>
-  <div class="info" id="p-res" style="margin-top:14px"></div>
-  ${ps('Konto und Daten')}
-  ${accBlock()}
-  ${pushBlock()}
-  ${SAMPLE?'':PROXY_OK?`<div class="hint" style="margin-top:14px">KI-Funktionen sind über den Server aktiv, ein eigener Schlüssel ist nicht nötig.</div>`:`<div class="field" style="margin-top:14px"><label>KI-Schlüssel für Essens-Schätzung (optional)</label><input class="inp" id="p-groq" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="gsk_…" value="${esc(groqKey())}"><div class="hint" style="margin-top:6px">Kostenlos auf console.groq.com erstellen. Bleibt nur auf diesem Gerät.</div></div>`}
-  <button class="btn lime block" style="margin-top:14px" data-act="p-save">Speichern</button>
-  ${window.top!==window?'':`<div class="grid2" style="margin-top:10px"><button class="btn ghost sm" style="height:42px" data-act="bk-export">Backup sichern</button><label class="btn ghost sm" style="height:42px">Backup laden<input type="file" accept="application/json,.json" id="bk-file" hidden></label></div>`}`);
+  ${grp(num('p-rest','Satzpause (Sek.)',p.rest,'90','5','numeric')+`<div class="field"><label>Wochenstart</label><div class="chips">${ch('ws','mon','Mo',p.weekStart)}${ch('ws','sun','So',p.weekStart)}</div></div>`)}`)}
+  ${sec('Startseite','Karten ein- und ausblenden',`<div class="chips" style="flex-wrap:wrap">${HS.map(([k,l])=>`<button class="chip ${hm[k]!==false?'on':''}" data-act="p-home" data-k="${k}">${l}</button>`).join('')}</div>`)}
+  ${sec('Daten','Benachrichtigung, Backup',`${pushBlock()}${key}${window.top!==window?'':`<div class="grid2" style="margin-top:12px"><button class="btn ghost sm" data-act="bk-export">Backup sichern</button><label class="btn ghost sm">Backup laden<input type="file" accept="application/json,.json" id="bk-file" hidden></label></div>`}`)}
+  <button class="btn lime block" data-act="p-save">Speichern</button>`);
   if($('#bk-file')) $('#bk-file').onchange=ev=>{ const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result); if(!o||!o.days||!o.profile) throw 0; confirmSheet('Backup laden?','Deine aktuellen Daten werden durch das Backup ersetzt.','Laden',()=>{ S={...S,...o,profile:{...DEF_PROFILE,...o.profile}}; const now=Date.now(); S.meta={profile:now}; Object.keys(S.days).forEach(k=>S.meta['d'+k]=now); Object.keys(S.meta).forEach(k=>touch(k)); renderAll(); toast('Backup geladen'); },false); }catch(e){ toast('Datei ist kein FORGE-Backup'); } }; r.readAsText(f); };
   PDRAFT={sex:p.sex,goal:p.goal,td:+p.trainDays||3,lvl:p.level||'mid',ws:p.weekStart||'mon',home:{donut:true,week:true,train:true,links:true,weight:true,...(p.home||{})}}; updProfileRes(); }
 let PDRAFT={};
@@ -2032,10 +2066,11 @@ Object.assign(A,{'scan':()=>openScanner(),
       const finish=async(create)=>{ ACC={n,id:d.id,k:d.raw,last:0}; ACC_KEY=d.key; localStorage.setItem('forge.acct',JSON.stringify(ACC));
         if(!create){ const o=await decJSON(d.key,txt); const r=accApply(o.docs); saveLocal(); if(r.localNewer) await accPush(); else { ACC.last=Date.now(); localStorage.setItem('forge.acct',JSON.stringify(ACC)); setSync(true); } accNameFix(n); }
         else { accNameFix(n); await accPush(); }
-        closeSheet(); renderAll(); if(S.active) startTicker(); toast(create?'Konto erstellt':'Angemeldet · Daten geladen'); };
+        closeWelcome(); closeSheet(); renderAll(); if(S.active) startTicker(); toast(create?'Konto erstellt':'Angemeldet · Daten geladen'); };
       if(txt) await finish(false);
       else confirmSheet('Neues Konto erstellen?',`Unter „${esc(n)}“ mit diesem Passwort gibt es noch kein Konto. Falls du dich vertippt hast, geh zurück. Merk dir dein Passwort gut – es kann nicht zurückgesetzt werden.`,'Erstellen',()=>finish(true).catch(()=>toast('Keine Verbindung – später nochmal versuchen')),false);
     }catch(e){ el.disabled=false; el.textContent='Anmelden / Konto erstellen'; toast(e&&e.code==='net'?'Keine Verbindung zum Speicher':'Anmeldung fehlgeschlagen'); } },
+  'welcome-skip':()=>{ try{localStorage.setItem('forge.skipLogin','1')}catch(e){} closeWelcome(); },
   'acc-sync':async el=>{ el.textContent='Synchronisiere …'; await accPull(true); if(accT){ clearTimeout(accT); await accPush(); } closeSheet(); toast(ACC&&ACC.last?'Synchronisiert':'Keine Verbindung'); },
   'acc-out':()=>confirmSheet('Abmelden?','Die Daten bleiben auf diesem Gerät und in deinem Konto. Du kannst dich jederzeit wieder anmelden.','Abmelden',()=>{ ACC=null; ACC_KEY=null; localStorage.removeItem('forge.acct'); $('#sync').style.display='none'; closeSheet(); }),
   'cx-new':()=>openCexForm('picker'),
@@ -2051,7 +2086,7 @@ Object.assign(A,{'scan':()=>openScanner(),
   'cx-del':el=>{ const id=el.dataset.id; closeSheet(); undoable(['profile'],()=>{ S.cex=(S.cex||[]).filter(e=>e.id!==id); },'Übung gelöscht'); },
   'focus-next':()=>{ const o=['k','p','c','f','z']; FOCUS=o[(o.indexOf(FOCUS)+1)%o.length]; renderAll(); },'focus':el=>{ const k=el.dataset.k; FOCUS=FOCUS===k?'k':k; renderAll(); },'meal-toggle':el=>{ const m=el.dataset.m; OPEN_MEALS.has(m)?OPEN_MEALS.delete(m):OPEN_MEALS.add(m); renderFood(); },'ai-paste':async()=>{ try{ const t=await navigator.clipboard.readText(); $('#ai-key').value=(t||'').trim(); if(!t) toast('Zwischenablage ist leer'); }catch(e){ toast('Lange ins Feld tippen → „Einfügen“'); } },'ai-key-save':()=>{ const el=$('#ai-key'); const v=(el.value||'').trim(); if(!/^gsk_\S{20,}$/.test(v)){ bad(el); toast('Das sieht nicht wie ein Groq-Schlüssel aus (gsk_…)'); return; } try{ localStorage.setItem('forge.groq',v); }catch(e){} AI_OK=true; touch('profile'); drawFoodSheet(); renderFood(); toast('KI aktiviert ✦'); }});
 /* ================= START ================= */
-(function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud(); if(ACC){ setSync(!!ACC.last); accPull(true); } if(h==='fazit') setTimeout(()=>openFazit(),300); else setTimeout(fazitAuto,800); if(PUSHK) setTimeout(()=>pushWrite(),3000); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ accPull(); setTimeout(fazitAuto,500); } else if(PUSHK) pushWrite(); else if(ACC&&accT){ clearTimeout(accT); accPush(); } });
+(function boot(){ const h=(location.hash||'').slice(1); go(['home','gym','food'].includes(h)?h:'home'); if(S.active) startTicker(); initCloud(); if(ACC){ setSync(!!ACC.last); accPull(true); } else { let sk=null; try{sk=localStorage.getItem('forge.skipLogin')}catch(e){} if(!sk) showWelcome(); } if(h==='fazit') setTimeout(()=>openFazit(),300); else setTimeout(fazitAuto,800); if(PUSHK) setTimeout(()=>pushWrite(),3000); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ accPull(); setTimeout(fazitAuto,500); } else if(PUSHK) pushWrite(); else if(ACC&&accT){ clearTimeout(accT); accPush(); } });
   try{ if('serviceWorker' in navigator && window.top===window && (location.protocol==='https:'||location.hostname==='localhost')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} })();
 </script>
 </body>
