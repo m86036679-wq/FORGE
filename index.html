@@ -485,6 +485,21 @@ h1.title{font-style:normal;font-weight:900;font-stretch:62%;font-size:56px;line-
 .h6-links b{font-family:var(--display);font-size:28px;font-weight:800;font-stretch:70%;line-height:1}
 .h6-links small{font-size:11px;font-weight:700;letter-spacing:1px;color:#9FA6B8;text-transform:uppercase}
 .h6-links em{font-style:normal;font-size:12px;color:#9FA6B8}
+
+/* Desktop: App im iPhone-Rahmen (nur breite Fenster, nicht als installierte App) */
+#phone,#screen,#scroll{display:contents}.isl{display:none}
+@media (min-width:700px){
+  html.desk,html.desk body{background:#F4EDE0;overflow:hidden;height:100%}
+  html.desk body{background:#F4EDE0}
+  html.desk{--safe-t:44px;--safe-b:20px}
+  html.desk #phone{display:block;position:fixed;left:50%;top:50%;width:414px;height:868px;padding:12px;background:#0B1426;border-radius:64px;box-shadow:0 30px 60px -20px rgba(11,20,38,.45),0 0 0 1px rgba(255,255,255,.06) inset;transform:translate(-50%,-50%) scale(var(--ps,1))}
+  html.desk #screen{display:block;position:relative;width:390px;height:844px;border-radius:52px;overflow:hidden;transform:translateZ(0);background:radial-gradient(520px 380px at 115% -8%,rgba(255,107,89,.22),rgba(255,107,89,0) 62%),radial-gradient(460px 420px at -25% 72%,rgba(255,107,89,.10),rgba(255,107,89,0) 60%),#14213D}
+  html.desk #scroll{display:block;height:100%;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+  html.desk #scroll::-webkit-scrollbar{display:none}
+  html.desk .isl{display:block;position:absolute;z-index:200;top:23px;left:50%;width:112px;height:32px;margin-left:-56px;border-radius:20px;background:#000;pointer-events:none}
+  html.desk .sheet{max-height:92%}
+  html.desk .foodlist{max-height:440px}
+}
 </style>
 </head>
 <body>
