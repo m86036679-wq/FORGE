@@ -500,6 +500,15 @@ h1.title{font-style:normal;font-weight:900;font-stretch:62%;font-size:56px;line-
   html.desk .sheet{max-height:92%}
   html.desk .foodlist{max-height:440px}
 }
+
+/* Tabbar: eigene Icons */
+.tabbar{padding:8px 26px calc(12px + var(--safe-b))}
+.tab{display:flex;flex-direction:column;align-items:center;gap:5px;border-bottom:0!important;padding:6px 10px 4px;font-size:10.5px;letter-spacing:1.2px;position:relative;min-width:64px}
+.tab svg{display:block!important;transition:transform .2s}
+.tab.on{color:#F4EDE0}
+.tab.on::after{content:"";position:absolute;bottom:-4px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--coral)}
+.tab.on svg{transform:translateY(-1px)}
+@media (min-width:700px){ html.desk,html.desk body{background:#000} html.desk #phone{background:#1A1D24;box-shadow:0 0 0 1.5px #3A3F4A inset,0 0 0 1px #000,0 40px 80px -20px rgba(255,107,89,.12)} }
 </style>
 </head>
 <body>
@@ -527,9 +536,9 @@ h1.title{font-style:normal;font-weight:900;font-stretch:62%;font-size:56px;line-
 </div>
 
 <nav class="tabbar">
-  <button class="tab on" data-act="tab" data-v="home"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Start</button>
-  <button class="tab" data-act="tab" data-v="gym"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/></svg>Gym</button>
-  <button class="tab" data-act="tab" data-v="food"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7c-1.5-2-5-2.5-6.5 0C3.5 10.5 5 17 8 20c1.2 1.2 2.6 1 4 .3 1.4.7 2.8.9 4-.3 3-3 4.5-9.5 2.5-13C17 4.5 13.5 5 12 7z"/><path d="M12 7c0-2 1-3.5 3-4"/></svg>Ernährung</button>
+  <button class="tab on" data-act="tab" data-v="home"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 1-8.1 5.9"/><path d="M12 7.5a4.5 4.5 0 1 1-4.3 3.2"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg><span>Start</span></button>
+  <button class="tab" data-act="tab" data-v="gym"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="3.5" height="10" rx="1.2"/><rect x="17" y="7" width="3.5" height="10" rx="1.2"/><path d="M7 12h10M1.8 10v4M22.2 10v4"/></svg><span>Gym</span></button>
+  <button class="tab" data-act="tab" data-v="food"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12.5h17a8.5 7.5 0 0 1-17 0z"/><path d="M9 20h6"/><path d="M12.5 9.5c0-3 2-5 5-5.5-.2 3-2 5-5 5.5z"/><path d="M12.5 9.5 10 6.5"/></svg><span>Ernährung</span></button>
 </nav>
 
 <div id="sheet-root"></div>
