@@ -624,6 +624,10 @@ i.sf,.sheet-h h2 i,.h6-hey i,.h6-sec i,.sec-h i{font-family:var(--serif);font-st
 .view.enter>*{animation:up .45s var(--ease) both}
 .view.enter>*:nth-child(2){animation-delay:.04s}.view.enter>*:nth-child(3){animation-delay:.08s}.view.enter>*:nth-child(4){animation-delay:.12s}.view.enter>*:nth-child(5){animation-delay:.16s}.view.enter>*:nth-child(6){animation-delay:.2s}.view.enter>*:nth-child(7){animation-delay:.24s}.view.enter>*:nth-child(8){animation-delay:.28s}.view.enter>*:nth-child(n+9){animation-delay:.32s}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}}
+
+h1.title{font-size:clamp(40px,13vw,56px);overflow-wrap:anywhere}
+html.desk h1.title{font-size:50px}
+.h6-big{max-width:100%;overflow:hidden}
 </style>
 </head>
 <body>
@@ -1215,7 +1219,7 @@ function renderHome(){
   <div class="h6-top"><span>${date}</span>${st>1?`<b>${st} Tage Serie</b>`:''}</div>
   <h1 class="h6-hey">${S.profile.name?'Hey, <i>'+esc(S.profile.name)+'</i>':'Heute <i>im Blick</i>'}</h1>
   <div class="h6-lab">${over?'kcal drüber':'kcal übrig'}</div>
-  <div class="h6-big num${over?' over':''}">${Math.abs(Math.round(left))}</div>
+  <div class="h6-big num${over?' over':''}" style="font-size:${String(Math.abs(Math.round(left))).length>=4?132:160}px">${Math.abs(Math.round(left))}</div>
   <div class="h6-meta"><span><b class="num">${Math.round(eaten)}</b> gegessen</span><span><b class="num">${Math.round(T.kcal)}</b> Ziel</span><span><b class="num">${Math.round(burned)}</b> Training</span></div>
   <div class="h6-bar"><span style="flex:${pct}"></span><span style="flex:${100-pct}"></span></div>
   <div class="h6-mac">
