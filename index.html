@@ -604,6 +604,31 @@ button.card{text-align:left;width:100%;font:inherit;color:var(--tx)}
 .psec[open] .chev{transform:rotate(180deg);color:var(--tx)}
 .psec-b{padding:2px 0 18px}
 .psec-b .field{margin-bottom:12px}
+
+/* Profil: Einstellungen */
+.sheet.pf{height:min(90vh,800px)}
+.pf-pg{display:flex;flex-direction:column;min-height:calc(100% - 4px)}
+.pf-pg.fwd{animation:pfR .32s var(--ease,cubic-bezier(.2,.8,.2,1))}.pf-pg.back{animation:pfL .32s var(--ease,cubic-bezier(.2,.8,.2,1))}
+@keyframes pfR{from{transform:translateX(36px);opacity:0}to{transform:none;opacity:1}}@keyframes pfL{from{transform:translateX(-36px);opacity:0}to{transform:none;opacity:1}}
+.pf-head{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:16px 18px;margin:0 0 18px;background:var(--s1);border-radius:28px;color:var(--tx)}
+.pf-head .acc-av{width:52px;height:52px;font-size:24px}.pf-head .acc-t{flex:1}.pf-head .acc-t b{font-size:19px}
+.pf-grp{background:var(--s1);border-radius:24px;margin:0 0 18px;overflow:hidden}
+.pf-row{display:flex;align-items:center;gap:12px;width:100%;min-height:54px;padding:10px 16px;text-align:left;color:var(--tx);position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pf-row+.pf-row::before{content:"";position:absolute;top:0;left:60px;right:0;height:1px;background:var(--line2)}
+.pf-row:active,.pf-head:active{background:rgba(255,255,255,.06)}.pf-row.static{cursor:default}.pf-row.static:active{background:none}
+.pf-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none;background:rgba(255,255,255,.1);color:var(--tx)}
+.pf-ic.hot{background:linear-gradient(135deg,#FF6B59,#FF9A76);color:#14213D}
+.pf-l{font-size:16px;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-v{font-size:14px;color:var(--tx3);max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-ch{display:grid;place-items:center;color:var(--tx3);flex:none;opacity:.7}.pf-ch svg{width:16px;height:16px}
+.pf-row.static .pf-l{padding-left:0}
+.pf-body{flex:1;padding-top:4px}
+.pf-hint{margin:10px 4px 18px;line-height:1.5}
+.pf-bar{position:sticky;bottom:0;margin:12px calc(-1*var(--pad)) calc(-24px - var(--safe-b));padding:12px var(--pad) calc(16px + var(--safe-b));background:linear-gradient(180deg,rgba(23,38,74,0),#17264A 38%);z-index:4}
+.pf-bar .btn{margin:0;position:static;box-shadow:none!important}
+.pf-out{display:block;width:100%;height:52px;margin:6px 0 4px;border-radius:24px;background:var(--s1);color:var(--red);font-size:16px;font-weight:600}
+.pf-legal h3{font-size:18px;font-weight:600;margin:6px 0 8px}.pf-legal p{font-size:14px;line-height:1.55;color:var(--tx2);margin:0 0 12px}
+.pf-legal .pf-todo{display:inline-block;padding:4px 10px;border-radius:99px;background:rgba(255,107,89,.16);color:var(--red);font-size:12px}
 #welcome{position:fixed;inset:0;z-index:55;overflow-y:auto;background:var(--atmo),#14213D;background-color:#14213D;display:flex}
 html.desk #welcome{position:absolute}
 .wl-in{margin:auto;width:100%;max-width:420px;min-height:100%;padding:calc(var(--safe-t) + 24px) var(--pad) calc(var(--safe-b) + 28px);display:flex;flex-direction:column;justify-content:space-between;gap:32px}
@@ -1419,7 +1444,7 @@ Antworte ausschließlich mit JSON in genau diesem Format:
   }catch(e){
     FS.aiErr = e&&e.code==='not_granted'?'Die KI-Schätzung ist in dieser Ansicht nicht verfügbar. Nutze die <b>Datenbank</b> oder trag die Werte unter <b>Eigenes</b> ein.'
       : e&&e.code==='badkey'?'Der KI-Schlüssel ist ungültig. Prüfe ihn im Profil.'
-      : e&&e.code==='rate_limited'?'Gerade zu viele Anfragen – versuch es in einer Minute nochmal.'
+      : e&&e.code==='limit'?AI_LIMIT_MSG : e&&e.code==='rate_limited'?'Gerade zu viele Anfragen – versuch es in einer Minute nochmal.'
       : e&&e.code==='empty'?'Daraus konnte ich keine Lebensmittel erkennen. Formulier es etwas genauer, z. B. mit Menge.'
       : 'Die Schätzung hat nicht geklappt. Versuch es nochmal oder nutze die Datenbank.';
   }
@@ -1458,34 +1483,88 @@ function drawPicker(){ const sh=$('#sheet-root .sheet'); if(!sh) return; const n
   <div class="list foodlist" id="pk-list">${pickList(list)}</div>`; }
 function pickList(list){ return list.map(e=>{const p=prevSets(e.id); return `<button class="li" data-act="pk-add" data-id="${e.id}"><span class="av" style="color:${e.t==='cardio'?'var(--orange)':'var(--lime)'}">${e.t==='cardio'?'':I.dumb}</span><span class="m"><b>${esc(e.n)}${e.custom?' <span class="tag orange" style="margin-left:4px">Eigene</span>':''}</b><small>${e.g}${p?' · zuletzt '+prevLabel(e,p[0]):''}</small></span><span class="r" style="color:var(--lime)">${I.plus}</span></button>`}).join('')||'<p class="empty">Keine Übung gefunden.</p>'; }
 
-function openProfile(){ const p=S.profile; const sec=(t,sub,body,open)=>`<details class="psec"${open?' open':''}><summary><span>${t}</span><small>${sub||''}</small><i class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></i></summary><div class="psec-b">${body}</div></details>`;
-  const ch=(k,v,l,cur)=>`<button class="chip ${cur===v?'on':''}" data-act="p-set" data-k="${k}" data-v="${v}">${l}</button>`;
+/* ===== PROFIL / EINSTELLUNGEN (iOS-Stil) ===== */
+const PFI={konto:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',body:'<circle cx="12" cy="5" r="2.2"/><path d="M12 8v7M7 10l5-2 5 2M9 21l3-6 3 6"/>',goal:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8"/>',food:'<path d="M12 7c-2-2-7-1-7 5 0 4 3 8 5 8 1 0 1-.6 2-.6s1 .6 2 .6c2 0 5-4 5-8 0-6-5-7-7-5z"/><path d="M12 7c0-2 1-3 3-4"/>',train:'<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>',home:'<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',notif:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',ai:'<path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>',data:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',legal:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>'};
+const pfIc=k=>`<span class="pf-ic${k==='konto'?' hot':''}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${PFI[k]}</svg></span>`;
+function agoTxt(t){ const m=Math.max(0,Math.round((Date.now()-t)/60000)); return m<1?'gerade eben':m<60?'vor '+m+' min':m<1440?'vor '+Math.round(m/60)+' Std.':'vor '+Math.round(m/1440)+' Tg.'; }
+const AI_LIMIT=25;
+function aiCountRead(){ try{ const o=JSON.parse(localStorage.getItem('forge.aiCount')||'null'); if(o&&o.d===today()&&+o.n>=0) return o; }catch(e){} return {d:today(),n:0}; }
+const aiLeft=()=>Math.max(0,AI_LIMIT-aiCountRead().n);
+const AI_LIMIT_MSG='Tageslimit für die KI erreicht ('+AI_LIMIT+'). Morgen geht\'s weiter.';
+function aiCountUse(){ const o=aiCountRead(); if(o.n>=AI_LIMIT) throw {code:'limit',msg:AI_LIMIT_MSG}; o.n++; try{ localStorage.setItem('forge.aiCount',JSON.stringify(o)); }catch(e){} }
+const PF_PAGES={
+  konto:{t:'Konto & Sync',val:()=>ACC?ACC.n:'Nicht angemeldet'},
+  body:{t:'Körperdaten',val:()=>S.profile.weight?S.profile.weight+' kg':'',save:1},
+  goal:{t:'Ziele',val:()=>(GOALS.find(g=>g[0]===S.profile.goal)||[])[1]||'',save:1},
+  food:{t:'Ernährung',val:()=>fmt(targets(S.profile).kcal)+' kcal',save:1},
+  train:{t:'Training',val:()=>(S.profile.trainDays||3)+' Tage',save:1},
+  home:{t:'Startseite',val:()=>{ const h=S.profile.home||{}; return ['donut','week','train','links','weight'].filter(k=>h[k]!==false).length+' von 5 Karten'; },save:1},
+  notif:{t:'Benachrichtigungen',val:()=>('Notification' in window&&Notification.permission==='granted'&&PUSHK)?'Aktiv':'Aus'},
+  ai:{t:'KI-Zugang',val:()=>SAMPLE?'Beispiel':PROXY_OK?'Aktiv':groqKey()?'Eigener Schlüssel':'Nicht eingerichtet',save:1},
+  data:{t:'Daten & Backup',val:()=>''},
+  legal:{t:'Datenschutz & Impressum',val:()=>''}};
+const PF_GROUPS=[['konto'],['body','goal','food','train'],['home','notif','ai'],['data','legal']];
+function pfRow(k){ const P=PF_PAGES[k]; return `<button class="pf-row" data-act="pf-go" data-p="${k}">${pfIc(k)}<span class="pf-l">${P.t}</span><span class="pf-v">${esc(P.val())}</span><i class="pf-ch">${I.chevR}</i></button>`; }
+function pfMainHtml(){ const p=S.profile, nm=ACC?ACC.n:(p.name||''), sub=ACC?'Angemeldet · '+(ACC.last?'synchronisiert '+agoTxt(ACC.last):'noch nicht synchronisiert'):'Nicht angemeldet';
+  return `<div class="sheet-h"><h2>Profil</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
+  <button class="pf-head" data-act="pf-go" data-p="konto"><span class="acc-av">${esc((nm||'F').charAt(0).toUpperCase())}</span><span class="acc-t"><b>${esc(nm||'FORGE')}</b><small><i class="acc-dot ${ACC&&ACC.last?'ok':''}"></i>${sub}</small></span><i class="pf-ch">${I.chevR}</i></button>
+  ${PF_GROUPS.map(g=>`<div class="pf-grp">${g.map(pfRow).join('')}</div>`).join('')}`; }
+function pfPageHtml(k){ const p=S.profile, hm=p.home||{}; const P=PF_PAGES[k];
+  const ch=(kk,v,l,cur)=>`<button class="chip ${cur===v?'on':''}" data-act="p-set" data-k="${kk}" data-v="${v}">${l}</button>`;
   const num=(id,l,v,ph='',st='1',mode='decimal')=>`<div class="field"><label>${l}</label><input class="inp" id="${id}" type="number" inputmode="${mode}" step="${st}" value="${v==null||v===0?'':v}" placeholder="${ph}" data-in="p-live"></div>`;
-  const hm=p.home||{}; const HS=[['donut','Makro-Donut'],['week','Kalorien 7 Tage'],['train','Training-Karte'],['links','Tagesfazit und Statistik'],['weight','Körpergewicht']];
-  const grp=(items)=>`<div class="grid2">${items}</div>`;
-  const key=SAMPLE?'':PROXY_OK?'':`<div class="field" style="margin-top:12px"><label>KI-Schlüssel (optional)</label><input class="inp" id="p-groq" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="gsk_…" value="${esc(groqKey())}"><div class="hint" style="margin-top:6px">Kostenlos auf console.groq.com. Bleibt nur auf diesem Gerät.</div></div>`;
-  openSheet(`<div class="sheet-h"><h2>Profil</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
-  ${sec('Konto',ACC?'Angemeldet':'Nicht angemeldet',accBlock(),true)}
-  ${sec('Körper',esc(p.name||'')+(p.weight?' · '+p.weight+' kg':''),`<div class="field"><label>Name</label><input class="inp" id="p-name" value="${esc(p.name)}"></div>
-  <div class="field"><label>Geschlecht</label><div class="chips"><button class="chip ${p.sex==='m'?'on':''}" data-act="p-sex" data-v="m">Männlich</button><button class="chip ${p.sex==='f'?'on':''}" data-act="p-sex" data-v="f">Weiblich</button></div></div>
-  <div class="grid3"><div class="field"><label>Alter</label><input class="inp" id="p-age" type="number" inputmode="numeric" value="${p.age}" data-in="p-live"></div><div class="field"><label>Größe cm</label><input class="inp" id="p-height" type="number" inputmode="numeric" value="${p.height}" data-in="p-live"></div><div class="field"><label>Gewicht kg</label><input class="inp" id="p-weight" type="number" inputmode="decimal" value="${p.weight}" data-in="p-live"></div></div>
-  <div class="field"><label>Alltag (ohne Training)</label><select class="inp" id="p-act" data-in="p-live">${ACT.map(a=>`<option value="${a[0]}" ${a[0]==p.activity?'selected':''}>${a[1]} – ${a[2]}</option>`).join('')}</select></div>`)}
-  ${sec('Ziel',(GOALS.find(g=>g[0]===p.goal)||[])[1]||'',`<div class="field"><div class="chips">${GOALS.map(g=>`<button class="chip ${p.goal===g[0]?'on':''}" data-act="p-goal" data-v="${g[0]}">${g[1]}</button>`).join('')}</div></div>
-  ${grp(num('p-goalkg','Zielgewicht (kg)',p.goalKg,'optional','0.1')+num('p-pace','Tempo (kg/Woche)',p.pace,'z. B. -0,5','0.05'))}`)}
-  ${sec('Ernährung','Makros, Wasser',`${grp(num('p-protkg','Protein (g/kg)',p.protKg,'Standard','0.1')+num('p-fatpct','Fett (% kcal)',p.fatPct,'28','1','numeric'))}
-  ${grp(num('p-sugar','Zucker max. (g)',p.sugarMax,'Standard','1','numeric')+num('p-water','Wasser (ml)',p.waterGoal,'2500','50','numeric'))}
-  <div class="info" id="p-res"></div>`)}
-  ${sec('Training',(p.trainDays||3)+' Tage pro Woche',`<div class="field"><label>Tage pro Woche</label><div class="chips">${[1,2,3,4,5,6].map(n=>ch('td',n,n,+p.trainDays)).join('')}</div></div>
-  <div class="field"><label>Erfahrung</label><div class="chips">${[['low','Anfänger'],['mid','Fortgeschritten'],['pro','Profi']].map(([v,l])=>ch('lvl',v,l,p.level)).join('')}</div></div>
-  ${grp(num('p-rest','Satzpause (Sek.)',p.rest,'90','5','numeric')+`<div class="field"><label>Wochenstart</label><div class="chips">${ch('ws','mon','Mo',p.weekStart)}${ch('ws','sun','So',p.weekStart)}</div></div>`)}`)}
-  ${sec('Startseite','Karten ein- und ausblenden',`<div class="chips" style="flex-wrap:wrap">${HS.map(([k,l])=>`<button class="chip ${hm[k]!==false?'on':''}" data-act="p-home" data-k="${k}">${l}</button>`).join('')}</div>`)}
-  ${sec('Daten','Benachrichtigung, Backup',`${pushBlock()}${key}${window.top!==window?'':`<div class="grid2" style="margin-top:12px"><button class="btn ghost sm" data-act="bk-export">Backup sichern</button><label class="btn ghost sm">Backup laden<input type="file" accept="application/json,.json" id="bk-file" hidden></label></div>`}`)}
-  <button class="btn lime block" data-act="p-save">Speichern</button>`);
-  if($('#bk-file')) $('#bk-file').onchange=ev=>{ const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result); if(!o||!o.days||!o.profile) throw 0; confirmSheet('Backup laden?','Deine aktuellen Daten werden durch das Backup ersetzt.','Laden',()=>{ S={...S,...o,profile:{...DEF_PROFILE,...o.profile}}; const now=Date.now(); S.meta={profile:now}; Object.keys(S.days).forEach(k=>S.meta['d'+k]=now); Object.keys(S.meta).forEach(k=>touch(k)); renderAll(); toast('Backup geladen'); },false); }catch(e){ toast('Datei ist kein FORGE-Backup'); } }; r.readAsText(f); };
-  PDRAFT={sex:p.sex,goal:p.goal,td:+p.trainDays||3,lvl:p.level||'mid',ws:p.weekStart||'mon',home:{donut:true,week:true,train:true,links:true,weight:true,...(p.home||{})}}; updProfileRes(); }
+  const hint=t=>`<p class="hint pf-hint">${t}</p>`;
+  const HS=[['donut','Makro-Donut'],['week','Kalorien 7 Tage'],['train','Training-Karte'],['links','Tagesfazit und Statistik'],['weight','Körpergewicht']];
+  let b='';
+  if(k==='konto'){ b=ACC?`<div class="pf-head" style="cursor:default"><span class="acc-av">${esc((ACC.n||'?').charAt(0).toUpperCase())}</span><span class="acc-t"><b>${esc(ACC.n)}</b><small><i class="acc-dot ${ACC.last?'ok':''}"></i>Angemeldet</small></span></div>
+      <div class="pf-grp"><div class="pf-row static"><span class="pf-l">Zuletzt synchronisiert</span><span class="pf-v">${ACC.last?agoTxt(ACC.last):'noch nicht'}</span></div></div>
+      <button class="btn ghost block" style="height:50px" data-act="acc-sync">Jetzt synchronisieren</button>${hint('Deine Daten werden automatisch verschlüsselt gesichert, sobald du etwas änderst.')}
+      <button class="pf-out" data-act="acc-out">Abmelden</button>`
+    :`<div class="field"><label>Name</label><input class="inp" id="acc-n" placeholder="Dein Kontoname" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+      <div class="field"><label>Passwort</label><input class="inp" id="acc-p" type="password" placeholder="Passwort" autocomplete="current-password"></div>
+      <button class="btn lime block acc-go" data-act="acc-in">Anmelden / Konto erstellen</button>${hint('Mit Konto sind deine Daten auf jedem Gerät verfügbar. Gleicher Name und gleiches Passwort genügen. Alles wird auf deinem Gerät verschlüsselt, bevor es gespeichert wird. Das Passwort kann nicht zurückgesetzt werden.')}`; }
+  else if(k==='body'){ b=`<div class="field"><label>Name</label><input class="inp" id="p-name" value="${esc(p.name)}"></div>
+    <div class="field"><label>Geschlecht</label><div class="chips"><button class="chip ${p.sex==='m'?'on':''}" data-act="p-sex" data-v="m">Männlich</button><button class="chip ${p.sex==='f'?'on':''}" data-act="p-sex" data-v="f">Weiblich</button></div></div>
+    <div class="grid3"><div class="field"><label>Alter</label><input class="inp" id="p-age" type="number" inputmode="numeric" value="${p.age}" data-in="p-live"></div><div class="field"><label>Größe cm</label><input class="inp" id="p-height" type="number" inputmode="numeric" value="${p.height}" data-in="p-live"></div><div class="field"><label>Gewicht kg</label><input class="inp" id="p-weight" type="number" inputmode="decimal" value="${p.weight}" data-in="p-live"></div></div>
+    <div class="field"><label>Alltag (ohne Training)</label><select class="inp" id="p-act" data-in="p-live">${ACT.map(a=>`<option value="${a[0]}" ${a[0]==p.activity?'selected':''}>${a[1]} – ${a[2]}</option>`).join('')}</select></div>${hint('Daraus berechnet FORGE deinen Grundumsatz und dein Tagesziel.')}`; }
+  else if(k==='goal'){ b=`<div class="field"><label>Was ist dein Ziel?</label><div class="chips">${GOALS.map(g=>`<button class="chip ${p.goal===g[0]?'on':''}" data-act="p-goal" data-v="${g[0]}">${g[1]}</button>`).join('')}</div></div>
+    <div class="grid2">${num('p-goalkg','Zielgewicht (kg)',p.goalKg,'optional','0.1')+num('p-pace','Tempo (kg/Woche)',p.pace,'z. B. -0,5','0.05')}</div>${hint('Tempo: negativ zum Abnehmen, positiv zum Zunehmen. Leer lassen für den Standard.')}`; }
+  else if(k==='food'){ b=`<div class="grid2">${num('p-protkg','Protein (g/kg)',p.protKg,'Standard','0.1')+num('p-fatpct','Fett (% kcal)',p.fatPct,'28','1','numeric')}</div>
+    <div class="grid2">${num('p-sugar','Zucker max. (g)',p.sugarMax,'Standard','1','numeric')+num('p-water','Wasser (ml)',p.waterGoal,'2500','50','numeric')}</div><div class="info" id="p-res"></div>${hint('Leere Felder nutzen die Standardwerte.')}`; }
+  else if(k==='train'){ b=`<div class="field"><label>Tage pro Woche</label><div class="chips">${[1,2,3,4,5,6].map(n=>ch('td',n,n,+p.trainDays)).join('')}</div></div>
+    <div class="field"><label>Erfahrung</label><div class="chips">${[['low','Anfänger'],['mid','Fortgeschritten'],['pro','Profi']].map(([v,l])=>ch('lvl',v,l,p.level)).join('')}</div></div>
+    <div class="field"><label>Wochenstart</label><div class="chips">${ch('ws','mon','Montag',p.weekStart)}${ch('ws','sun','Sonntag',p.weekStart)}</div></div>
+    <div class="grid2">${num('p-rest','Satzpause (Sek.)',p.rest,'90','5','numeric')}</div>${hint('Die Satzpause startet nach jedem Satz automatisch.')}`; }
+  else if(k==='home'){ b=`<div class="chips" style="flex-wrap:wrap">${HS.map(([kk,l])=>`<button class="chip ${hm[kk]!==false?'on':''}" data-act="p-home" data-k="${kk}">${l}</button>`).join('')}</div>${hint('Tippe auf eine Karte, um sie auf der Startseite ein- oder auszublenden.')}`; }
+  else if(k==='notif'){ b=pushBlock()+hint('Das Tagesfazit kommt abends als Mitteilung. Funktioniert nur in der App vom Homescreen.'); }
+  else if(k==='ai'){ const own=groqKey(), left=aiLeft();
+    const field=`<div class="field"><label>${PROXY_OK?'Eigener KI-Schlüssel (optional)':'KI-Schlüssel'}</label><input class="inp" id="p-groq" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="gsk_…" value="${esc(own)}"><div class="hint" style="margin-top:6px">Kostenlos auf console.groq.com. Bleibt nur auf diesem Gerät. ${PROXY_OK?'Mit eigenem Schlüssel gibt es kein Tageslimit.':''}</div></div>`;
+    b=SAMPLE?`<div class="info">KI läuft im Beispielmodus.</div>`
+      :PROXY_OK?`<div class="info"><b>KI ist aktiv</b><br>${own?'Du nutzt deinen eigenen Schlüssel, ohne Tageslimit.':'Heute noch <b>'+left+' von '+AI_LIMIT+'</b> Anfragen übrig.'}</div>${own?'':''}<div style="margin-top:16px">${own?field:''}</div>`
+      :`<div class="info">Die KI ist noch nicht eingerichtet. Mit einem eigenen Schlüssel kannst du Essen per Text oder Foto schätzen lassen.</div><div style="margin-top:16px">${field}</div>`; }
+  else if(k==='data'){ b=`${window.top!==window?'':`<div class="pf-grp"><button class="pf-row" data-act="bk-export">${pfIc('data')}<span class="pf-l">Backup sichern</span><i class="pf-ch">${I.chevR}</i></button><label class="pf-row">${pfIc('data')}<span class="pf-l">Backup laden</span><i class="pf-ch">${I.chevR}</i><input type="file" accept="application/json,.json" id="bk-file" hidden></label></div>`}
+    ${hint('Das Backup ist eine Datei mit allen deinen Daten. Du kannst sie später wieder laden.')}
+    <button class="pf-out" data-act="wipe">Alle Daten auf diesem Gerät löschen</button>${hint('Löscht Profil, Tagebuch und Trainings von diesem Gerät. '+(ACC?'Dein Konto bleibt bestehen, du kannst dich wieder anmelden.':'Ohne Konto oder Backup ist das endgültig.'))}`; }
+  else if(k==='legal'){ b=`<div class="pf-legal"><h3>Impressum</h3><p class="pf-todo">Bitte vor Veröffentlichung ausfüllen.</p><p>Angaben gemäß § 5 DDG<br>[Name]<br>[Adresse]<br>E-Mail: [E-Mail]</p>
+    <h3>Datenschutz</h3><p><b>Auf deinem Gerät.</b> Profil, Ernährungs- und Trainingstagebuch werden lokal in deinem Browser gespeichert.</p>
+    <p><b>Optionales Konto.</b> Wenn du ein Konto anlegst, werden deine Daten auf deinem Gerät mit AES-GCM verschlüsselt und als verschlüsselter Block in einem kostenlosen Key-Value-Dienst (kvs.ix.workers.dev bzw. awesomekv.dev) gespeichert. Name und Passwort verlassen dein Gerät nicht im Klartext; ohne Passwort kann niemand die Daten lesen.</p>
+    <p><b>KI-Funktion.</b> Beschreibst du Essen oder lädst ein Foto hoch, werden Text bzw. Foto über eine Vercel-Serverfunktion an Groq gesendet und dort verarbeitet. Mit eigenem Schlüssel gehen die Anfragen direkt an Groq.</p>
+    <p><b>Lebensmitteldaten.</b> Suche und Barcode-Scan fragen Open Food Facts ab (Suchbegriff bzw. Barcode).</p>
+    <p><b>Schriften.</b> Schriftarten werden von Google Fonts geladen, dabei wird deine IP-Adresse an Google übertragen.</p>
+    <p><b>Kein Tracking.</b> Keine Werbung, keine Analyse-Tools, keine Cookies zu Werbezwecken.</p>
+    <p><b>Daten löschen.</b> Unter Daten & Backup kannst du alle Daten auf diesem Gerät löschen. Ein Konto verlässt du über Abmelden; für die Löschung des Kontos wende dich an die oben genannte E-Mail-Adresse.</p></div>`; }
+  return `<div class="sheet-h"><button class="x" data-act="pf-back" aria-label="Zurück">${I.chevL}</button><h2 style="flex:1">${P.t}</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
+  <div class="pf-body">${b}</div>${P.save?`<div class="pf-bar"><button class="btn lime block" data-act="p-save">Speichern</button></div>`:''}`; }
+function pfRender(html,dir){ const sh=$('#sheet-root .sheet'); if(!sh) return; const keep=sh.scrollTop; sh.innerHTML=`<div class="grab"></div><div class="pf-pg ${dir||''}">${html}</div>`; sh.scrollTop=dir==='back'?keep:0;
+  const bf=$('#bk-file'); if(bf) bf.onchange=ev=>{ const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result); if(!o||!o.days||!o.profile) throw 0; confirmSheet('Backup laden?','Deine aktuellen Daten werden durch das Backup ersetzt.','Laden',()=>{ S={...S,...o,profile:{...DEF_PROFILE,...o.profile}}; const now=Date.now(); S.meta={profile:now}; Object.keys(S.days).forEach(k=>S.meta['d'+k]=now); Object.keys(S.meta).forEach(k=>touch(k)); renderAll(); toast('Backup geladen'); },false); }catch(e){ toast('Datei ist kein FORGE-Backup'); } }; r.readAsText(f); };
+  updProfileRes(); }
+function pfOpen(k){ pfRender(pfPageHtml(k),'fwd'); }
+function openProfile(start){ const p=S.profile;
+  PDRAFT={sex:p.sex,goal:p.goal,td:+p.trainDays||3,lvl:p.level||'mid',ws:p.weekStart||'mon',home:{donut:true,week:true,train:true,links:true,weight:true,...(p.home||{})}};
+  openSheet(`<div class="pf-pg">${pfMainHtml()}</div>`); const sh=$('#sheet-root .sheet'); if(sh) sh.classList.add('pf'); if(start) pfOpen(start); }
 let PDRAFT={};
-function readProfile(){ const n=id=>+$(id).value; return {...S.profile,name:$('#p-name').value.trim(),sex:PDRAFT.sex,goal:PDRAFT.goal,age:n('#p-age')||S.profile.age,height:n('#p-height')||S.profile.height,weight:n('#p-weight')||S.profile.weight,activity:+$('#p-act').value,rest:n('#p-rest')||90,waterGoal:n('#p-water')||2500,
-  goalKg:+$('#p-goalkg').value||0,pace:$('#p-pace').value===''?null:Math.max(-1.5,Math.min(1,+$('#p-pace').value)),protKg:$('#p-protkg').value===''?0:Math.max(1.2,Math.min(2.5,+$('#p-protkg').value)),fatPct:$('#p-fatpct').value===''?28:Math.max(20,Math.min(40,+$('#p-fatpct').value)),sugarMax:+$('#p-sugar').value||0,trainDays:PDRAFT.td,level:PDRAFT.lvl,weekStart:PDRAFT.ws,home:{...PDRAFT.home}}; }
+function readProfile(){ const P=S.profile, has=id=>!!$(id), val=(id,fb,f)=>has(id)?f($(id).value):fb;
+  return {...P,name:val('#p-name',P.name,v=>v.trim()),sex:PDRAFT.sex,goal:PDRAFT.goal,age:val('#p-age',P.age,v=>+v||P.age),height:val('#p-height',P.height,v=>+v||P.height),weight:val('#p-weight',P.weight,v=>+v||P.weight),activity:val('#p-act',P.activity,v=>+v),rest:val('#p-rest',P.rest,v=>+v||90),waterGoal:val('#p-water',P.waterGoal,v=>+v||2500),
+  goalKg:val('#p-goalkg',P.goalKg,v=>+v||0),pace:val('#p-pace',P.pace,v=>v===''?null:Math.max(-1.5,Math.min(1,+v))),protKg:val('#p-protkg',P.protKg,v=>v===''?0:Math.max(1.2,Math.min(2.5,+v))),fatPct:val('#p-fatpct',P.fatPct,v=>v===''?28:Math.max(20,Math.min(40,+v))),sugarMax:val('#p-sugar',P.sugarMax,v=>+v||0),trainDays:PDRAFT.td,level:PDRAFT.lvl,weekStart:PDRAFT.ws,home:{...PDRAFT.home}}; }
 function updProfileRes(){ const el=$('#p-res'); if(!el) return; const T=targets(readProfile());
   el.innerHTML=`Grundumsatz <b>${fmt(T.bmr)}</b> kcal · Alltag <b>${fmt(T.tdee)}</b> kcal<br>Tagesziel <b style="color:var(--lime)">${fmt(T.kcal)} kcal</b> + was du im Training verbrennst<br>Protein <b>${T.protein} g</b> · Kohlenhydrate <b>${T.carbs} g</b> · Fett <b>${T.fat} g</b><br>Zucker max. <b>${sugarMax(T,readProfile())} g</b>${readProfile().pace!=null?` · Anpassung <b>${Math.round(readProfile().pace*1100)>0?'+':''}${Math.round(readProfile().pace*1100)} kcal</b>`:''}<br><span class="dim">${S.profile.adapt&&adaptEst().ok?'Verbrauch aus deinen echten Daten berechnet.':'Berechnet nach Mifflin-St Jeor.'}</span>${adaptHtml()}`; }
 function adaptHtml(){ const a=adaptEst(); return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">${a.ok?`<b>Aus deinen Daten:</b> Verbrauch ≈ <b>${fmt(a.tdee)} kcal</b> <span class="dim">(Formel ${fmt(a.formula)})</span><br><span class="dim">${a.days} Tage Ø ${fmt(a.intake)} kcal · Gewicht ${a.slope>=0?'+':''}${r1(a.slope*7).toLocaleString('de-DE')} kg/Woche</span><br><button class="chip ${S.profile.adapt?'on-lime':''}" style="margin-top:8px" data-act="adapt">${S.profile.adapt?'✓ Ziel passt sich automatisch an':'Ziel automatisch anpassen'}</button>`:`<b>Automatische Anpassung</b><br><span class="dim">Sobald genug Daten da sind, berechnet FORGE deinen echten Verbrauch. Noch nötig in den letzten 4 Wochen: ${Math.min(a.days,10)}/10 Tage Essen · ${Math.min(a.w,3)}/3 Gewichtseinträge über mind. 10 Tage.</span>`}</div>`; }
@@ -1603,7 +1682,7 @@ Werte gelten für die geschätzte Menge (nicht je 100 g). Antworte ausschließli
     if(!items.length) throw {code:'empty'}; items.forEach(x=>{x.base={g:x.grams,k:x.kcal,p:x.protein,c:x.carbs,f:x.fat,z:x.sugar}}); FS.ai={items};
   }catch(e){ FS.aiErr= e&&e.code==='noimg'?'Fotos kann die KI hier gerade nicht auswerten – beschreib das Essen stattdessen in Worten.'
     : e&&e.code==='not_granted'?'Die KI ist hier nicht verfügbar.' : e&&e.code==='badkey'?'Der KI-Schlüssel ist ungültig. Prüfe ihn im Profil.'
-    : e&&e.code==='rate_limited'?'Gerade zu viele Anfragen – versuch es in einer Minute nochmal.' : e&&e.code==='empty'?'Auf dem Foto konnte ich kein Essen erkennen. Versuch es mit einem helleren Foto von oben.'
+    : e&&e.code==='limit'?AI_LIMIT_MSG : e&&e.code==='rate_limited'?'Gerade zu viele Anfragen – versuch es in einer Minute nochmal.' : e&&e.code==='empty'?'Auf dem Foto konnte ich kein Essen erkennen. Versuch es mit einem helleren Foto von oben.'
     : 'Die Foto-Erkennung hat nicht geklappt. Versuch es nochmal.'; }
   FS.busy=false; if($('#sheet-root .sheet')&&FS) drawFoodSheet(); }
 
@@ -1871,8 +1950,11 @@ const A={
       if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:'FORGE Backup'}); return; }
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); toast('Backup gespeichert'); }
     catch(e){ if(e&&e.name==='AbortError') return; try{ await navigator.clipboard.writeText(data); toast('Backup in die Zwischenablage kopiert'); }catch(_){ toast('Backup nicht möglich'); } } },
+  'pf-go':el=>pfOpen(el.dataset.p),
+  'pf-back':()=>pfRender(pfMainHtml(),'back'),
+  wipe:()=>confirmSheet('Alle Daten löschen?','Profil, Tagebuch und Trainings werden von diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.','Löschen',()=>{ try{ Object.keys(localStorage).filter(k=>/^forge\./.test(k)).forEach(k=>localStorage.removeItem(k)); }catch(e){} location.reload(); }),
   'p-save':()=>{ const gq=$('#p-groq'); if(gq){ try{ const v=gq.value.trim(); v?localStorage.setItem('forge.groq',v):localStorage.removeItem('forge.groq'); }catch(e){} AI_OK=!!SAMPLE||!!groqKey()||PROXY_OK; }
-    S.profile={...readProfile(),setup:true}; touch('profile'); closeSheet(); renderAll(); toast('Profil gespeichert'); },
+    S.profile={...readProfile(),setup:true}; touch('profile'); renderAll(); pfRender(pfMainHtml(),'back'); toast('Profil gespeichert'); },
   howcalc:()=>openSheet(`<div class="sheet-h"><h2>So rechnen wir</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
     <div class="info"><b>Krafttraining – pro Satz</b><br>① <b>Mechanische Arbeit:</b> (Gewicht + bewegter Körperanteil) × 9,81 × Bewegungsweg × Wiederholungen. Muskeln arbeiten mit ca. 20 % Wirkungsgrad, Absenken kostet zusätzlich ~20 %.<br>② <b>Belastungszeit:</b> Wdh × Sekunden pro Wdh × (MET − 1) × dein Körpergewicht.<br>③ <b>Satzpause:</b> erhöhter Puls ≈ 1 MET über Ruhe für ${S.profile.rest} s.</div>
     <div class="info" style="margin-top:10px"><b>Cardio</b><br>(MET je nach Intensität − 1) × Körpergewicht × Stunden – nach dem Compendium of Physical Activities.</div>
@@ -2029,7 +2111,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('#sheet-root').c
 
 async function groqJSON(content,vision){
   const models=vision?['qwen/qwen3.8-27b','qwen/qwen3.6-27b','meta-llama/llama-4-scout-17b-16e-instruct']:['llama-3.3-70b-versatile','openai/gpt-oss-120b','qwen/qwen3.8-27b'];
-  let last={code:'http'};
+  let last={code:'http'}; if(!groqKey()) aiCountUse();
   for(const m of models){
     let res; const own=groqKey(), body=JSON.stringify({model:m,temperature:0.2,max_tokens:2000,response_format:{type:'json_object'},messages:[{role:'user',content}]});
     try{ res=own?await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+own},body}):await fetch('/api/groq',{method:'POST',headers:{'Content-Type':'application/json'},body}); }catch(e){ throw {code:'net'}; }
@@ -2057,7 +2139,7 @@ Object.assign(A,{'scan':()=>openScanner(),
     try{ const perm=await Notification.requestPermission(); if(perm!=='granted'){ toast('Mitteilungen wurden nicht erlaubt'); el.disabled=false; el.textContent='Benachrichtigung um 21:30 aktivieren'; return; }
       const reg=await navigator.serviceWorker.ready; const sub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidU8(VAPID_PUB)});
       if(!PUSHK){ PUSHK=[...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,'0')).join(''); localStorage.setItem('forge.pushkey',PUSHK); }
-      await pushWrite(true); closeSheet(); A.profile(); }
+      await pushWrite(true); closeSheet(); setTimeout(()=>openProfile('notif'),50); }
     catch(e){ toast('Aktivieren fehlgeschlagen'); el.disabled=false; el.textContent='Benachrichtigung um 21:30 aktivieren'; } },
   'push-copy':async el=>{ try{ await navigator.clipboard.writeText(PUSHK); el.textContent='Kopiert ✓'; }catch(e){ el.textContent='Bitte manuell kopieren'; } },
   'fazit':()=>openFazit(),'acc-in':async el=>{ const n=$('#acc-n').value.trim(), pw=$('#acc-p').value; if(n.length<2){bad($('#acc-n'));return} if(pw.length<4){bad($('#acc-p'));return}
@@ -2071,7 +2153,7 @@ Object.assign(A,{'scan':()=>openScanner(),
       else confirmSheet('Neues Konto erstellen?',`Unter „${esc(n)}“ mit diesem Passwort gibt es noch kein Konto. Falls du dich vertippt hast, geh zurück. Merk dir dein Passwort gut – es kann nicht zurückgesetzt werden.`,'Erstellen',()=>finish(true).catch(()=>toast('Keine Verbindung – später nochmal versuchen')),false);
     }catch(e){ el.disabled=false; el.textContent='Anmelden / Konto erstellen'; toast(e&&e.code==='net'?'Keine Verbindung zum Speicher':'Anmeldung fehlgeschlagen'); } },
   'welcome-skip':()=>{ try{localStorage.setItem('forge.skipLogin','1')}catch(e){} closeWelcome(); },
-  'acc-sync':async el=>{ el.textContent='Synchronisiere …'; await accPull(true); if(accT){ clearTimeout(accT); await accPush(); } closeSheet(); toast(ACC&&ACC.last?'Synchronisiert':'Keine Verbindung'); },
+  'acc-sync':async el=>{ el.textContent='Synchronisiere …'; await accPull(true); if(accT){ clearTimeout(accT); await accPush(); } if($('#sheet-root .sheet.pf')) pfRender(pfPageHtml('konto'),''); toast(ACC&&ACC.last?'Synchronisiert':'Keine Verbindung'); },
   'acc-out':()=>confirmSheet('Abmelden?','Die Daten bleiben auf diesem Gerät und in deinem Konto. Du kannst dich jederzeit wieder anmelden.','Abmelden',()=>{ ACC=null; ACC_KEY=null; localStorage.removeItem('forge.acct'); try{localStorage.removeItem('forge.skipLogin')}catch(e){} const sy=$('#sync'); if(sy) sy.style.display='none'; closeSheet(); setTimeout(showWelcome,250); }),
   'cx-new':()=>openCexForm('picker'),
   'cx-open':()=>openCexForm('gym'),
