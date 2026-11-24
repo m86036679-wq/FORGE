@@ -436,10 +436,26 @@ details.meas-form summary::-webkit-details-marker{display:none}
 .banner small{color:#4A5470}
 .info{background:rgba(244,237,224,.07);border-color:var(--line)}
 .card .info{background:#EAE0CF;border-color:transparent;color:#14213D}
+
+/* Desktop: App im iPhone-Rahmen (nur breite Fenster, nicht als installierte App) */
+#phone,#screen,#scroll{display:contents}.isl{display:none}
+@media (min-width:700px){
+  html.desk,html.desk body{background:#F4EDE0;overflow:hidden;height:100%}
+  html.desk body{background:#F4EDE0}
+  html.desk{--safe-t:44px;--safe-b:20px}
+  html.desk #phone{display:block;position:fixed;left:50%;top:50%;width:414px;height:868px;padding:12px;background:#0B1426;border-radius:64px;box-shadow:0 30px 60px -20px rgba(11,20,38,.45),0 0 0 1px rgba(255,255,255,.06) inset;transform:translate(-50%,-50%) scale(var(--ps,1))}
+  html.desk #screen{display:block;position:relative;width:390px;height:844px;border-radius:52px;overflow:hidden;transform:translateZ(0);background:var(--bg)}
+  html.desk #scroll{display:block;height:100%;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+  html.desk #scroll::-webkit-scrollbar{display:none}
+  html.desk .isl{display:block;position:absolute;z-index:200;top:23px;left:50%;width:112px;height:32px;margin-left:-56px;border-radius:20px;background:#000;pointer-events:none}
+  html.desk .sheet{max-height:92%}
+  html.desk .foodlist{max-height:440px}
+}
 </style>
 </head>
 <body>
-<div id="app">
+<div id="phone"><i class="isl" aria-hidden="true"></i><div id="screen">
+<div id="scroll"><div id="app">
   <header class="topbar">
     <div class="brand">
       <div><b>FORGE</b><small>Gym · Ernährung</small></div>
@@ -454,7 +470,7 @@ details.meas-form summary::-webkit-details-marker{display:none}
     <section class="view" id="v-gym"></section>
     <section class="view" id="v-food"></section>
   </main>
-</div>
+</div></div>
 
 <div class="restbar" id="restbar">
   <div class="p"><small>Satzpause</small><div class="row"><span class="t" id="rest-t">1:30</span></div><div class="prog"><i id="rest-p"></i></div></div>
@@ -469,7 +485,13 @@ details.meas-form summary::-webkit-details-marker{display:none}
 
 <div id="sheet-root"></div>
 <div id="toast"></div>
+</div></div>
 
+<script>
+(function(){ const mq=matchMedia('(min-width: 700px)'); const fit=()=>{ const d=mq.matches&&!(navigator.standalone===true||matchMedia('(display-mode: standalone)').matches); document.documentElement.classList.toggle('desk',d); if(d) document.documentElement.style.setProperty('--ps',Math.min(1,(innerHeight-24)/868,(innerWidth-24)/414).toFixed(3)); };
+  fit(); addEventListener('resize',fit);
+  const ws=window.scrollTo.bind(window); window.scrollTo=function(){ const sc=document.getElementById('scroll'); if(document.documentElement.classList.contains('desk')&&sc) sc.scrollTo(...arguments); else ws(...arguments); }; })();
+</script>
 <script>
 /* ================= DATEN ================= */
 // Lebensmittel: [Name, kcal, Protein, Kohlenhydrate, Fett (je 100 g/ml), Portion g, Portionsname, Kategorie]
