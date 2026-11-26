@@ -845,10 +845,11 @@ function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e)
 
 let AI_OK=false, SAMPLE=null;
 const groqKey=()=>{try{return localStorage.getItem('forge.groq')||''}catch(e){return ''}};
-let PROXY_OK=false;
-AI_OK=!!groqKey();
-(function probeProxy(){ if(!/^https?:/.test(location.protocol)) return; const c=new AbortController(); setTimeout(()=>c.abort(),4000);
-  fetch('/api/groq',{method:'GET',cache:'no-store',signal:c.signal}).then(r=>r.ok&&/json/.test(r.headers.get('content-type')||'')?r.json():null).then(j=>{ if(j&&j.ok&&j.configured){ PROXY_OK=true; AI_OK=true; try{renderAll();}catch(e){} } }).catch(()=>{}); })();
+const PROXY_HOST=/^https?:$/.test(location.protocol)&&!/github\.io$|^localhost$|^127\./.test(location.hostname);
+let PROXY_OK=PROXY_HOST;
+AI_OK=!!groqKey()||PROXY_OK;
+(function probeProxy(n){ if(!PROXY_HOST) return; const c=new AbortController(); setTimeout(()=>c.abort(),12000);
+  fetch('/api/groq',{method:'GET',cache:'no-store',signal:c.signal}).then(r=>r.ok&&/json/.test(r.headers.get('content-type')||'')?r.json():{ok:false,notfound:r.status===404}).then(j=>{ const ok=!!(j&&j.ok&&j.configured); if(ok!==PROXY_OK||!ok){ if(!ok&&(j.notfound||j.ok)){ PROXY_OK=false; AI_OK=!!groqKey(); } else if(ok){ PROXY_OK=true; AI_OK=true; } try{renderAll();}catch(e){} } }).catch(()=>{ if(!n) setTimeout(()=>probeProxy(1),4000); }); })(0);
 let DB=null, DBCOL=null, flushing=false, syncT=null; const dirty=new Set();
 function touch(key){ S.meta[key]=Date.now(); saveLocal(); if(!key.startsWith('ph')) accSchedule(); if(DBCOL){dirty.add(key); clearTimeout(syncT); syncT=setTimeout(flush,900);} }
 function docBody(key){
@@ -1484,7 +1485,7 @@ Antworte ausschließlich mit JSON in genau diesem Format:
     FS.ai={items};
   }catch(e){
     FS.aiErr = e&&e.code==='not_granted'?'Die KI-Schätzung ist in dieser Ansicht nicht verfügbar. Nutze die <b>Datenbank</b> oder trag die Werte unter <b>Eigenes</b> ein.'
-      : e&&e.code==='badkey'?'Der KI-Schlüssel ist ungültig. Prüfe ihn im Profil.'
+      : e&&e.code==='nokey'?'Die KI ist auf dem Server noch nicht eingerichtet. Trag im Profil unter KI-Zugang einen Schlüssel ein.':e&&e.code==='nokey'?'Die KI ist auf dem Server noch nicht eingerichtet.':e&&e.code==='badkey'?'Der KI-Schlüssel ist ungültig. Prüfe ihn im Profil.'
       : e&&e.code==='limit'?AI_LIMIT_MSG : e&&e.code==='rate_limited'?'Gerade zu viele Anfragen – versuch es in einer Minute nochmal.'
       : e&&e.code==='empty'?'Daraus konnte ich keine Lebensmittel erkennen. Formulier es etwas genauer, z. B. mit Menge.'
       : 'Die Schätzung hat nicht geklappt. Versuch es nochmal oder nutze die Datenbank.';
@@ -1722,7 +1723,7 @@ Werte gelten für die geschätzte Menge (nicht je 100 g). Antworte ausschließli
     const items=(val&&val.items||[]).filter(x=>x&&x.name&&+x.grams>0).map(x=>({name:String(x.name).slice(0,60),grams:+x.grams,kcal:+x.kcal||0,protein:+x.protein||0,carbs:+x.carbs||0,sugar:+x.sugar||0,fat:+x.fat||0,on:true}));
     if(!items.length) throw {code:'empty'}; items.forEach(x=>{x.base={g:x.grams,k:x.kcal,p:x.protein,c:x.carbs,f:x.fat,z:x.sugar}}); FS.ai={items};
   }catch(e){ FS.aiErr= e&&e.code==='noimg'?'Fotos kann die KI hier gerade nicht auswerten – beschreib das Essen stattdessen in Worten.'
-    : e&&e.code==='not_granted'?'Die KI ist hier nicht verfügbar.' : e&&e.code==='badkey'?'Der KI-Schlüssel ist ungültig. Prüfe ihn im Profil.'
+    : e&&e.code==='not_granted'?'Die KI ist hier nicht verfügbar.' : e&&e.code==='nokey'?'Die KI ist auf dem Server noch nicht eingerichtet. Trag im Profil unter KI-Zugang einen Schlüssel ein.':e&&e.code==='badkey'?'Der KI-Schlüssel ist ungültig. Prüfe ihn im Profil.'
     : e&&e.code==='limit'?AI_LIMIT_MSG : e&&e.code==='rate_limited'?'Gerade zu viele Anfragen – versuch es in einer Minute nochmal.' : e&&e.code==='empty'?'Auf dem Foto konnte ich kein Essen erkennen. Versuch es mit einem helleren Foto von oben.'
     : 'Die Foto-Erkennung hat nicht geklappt. Versuch es nochmal.'; }
   FS.busy=false; if($('#sheet-root .sheet')&&FS) drawFoodSheet(); }
@@ -2157,7 +2158,7 @@ async function groqJSON(content,vision){
   for(const m of models){
     let res; const own=groqKey(), body=JSON.stringify({model:m,temperature:0.2,max_tokens:2000,response_format:{type:'json_object'},messages:[{role:'user',content}]});
     try{ res=own?await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+own},body}):await fetch('/api/groq',{method:'POST',headers:{'Content-Type':'application/json'},body}); }catch(e){ throw {code:'net'}; }
-    if(res.status===401) throw {code:'badkey'}; if(res.status===429) throw {code:'rate_limited'};
+    if(!own&&(res.status===404||res.status===500)){ let t=''; try{t=await res.clone().text()}catch(e){} if(res.status===404||/GROQ_API_KEY/.test(t)){ PROXY_OK=false; AI_OK=!!groqKey(); throw {code:'nokey'}; } } if(res.status===401) throw {code:'badkey'}; if(res.status===429) throw {code:'rate_limited'};
     if(!res.ok){ last={code:'http'}; continue; }
     const j=await res.json(); const txt=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'';
     try{ return JSON.parse(txt); }catch(e){ const mm=txt.replace(/<think>[\s\S]*?<\/think>/g,'').match(/\{[\s\S]*\}/); if(mm){ try{ return JSON.parse(mm[0]); }catch(_){} } }
