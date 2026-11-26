@@ -676,6 +676,14 @@ html.desk #welcome{position:absolute}
 .rc-step b{font-family:var(--display);font-size:40px;min-width:90px;text-align:center;font-weight:600}
 .rc-dock{position:sticky;bottom:calc(-24px - var(--safe-b));margin:14px calc(-1*var(--pad)) calc(-24px - var(--safe-b));padding:12px var(--pad) calc(18px + var(--safe-b));background:#17264A;z-index:4}
 
+/* QA: Tippflächen min. 44px */
+.link{min-height:44px;display:inline-flex;align-items:center;gap:6px}
+.restbar button,.seg button{height:44px}
+[data-act="fday"],.dots-b{min-width:44px;min-height:44px}
+.mtog{min-height:44px}
+[data-act="set-w"]{min-width:44px}
+[data-act="set-add"],[data-act="set-del"]{min-height:44px}
+.gymtab{min-height:44px}
 </style>
 </head>
 <body>
@@ -924,9 +932,9 @@ function accApply(docs){ let changed=false, localNewer=false;
   const local=accDocs(); if(Object.keys(local).some(k=>!(docs||{})[k]&&S.meta[k])) localNewer=true;
   return {changed,localNewer}; }
 async function accPush(){ if(!ACC) return; if(accBusy){ clearTimeout(accT); accT=setTimeout(accPush,2000); return; } accBusy=true;
-  try{ await kvPut(ACC.id,await encJSON(await accKey(),{v:1,t:Date.now(),docs:accDocs()})); ACC.last=Date.now(); localStorage.setItem('forge.acct',JSON.stringify(ACC)); setSync(true); }
+  try{ await kvPut(ACC.id,await encJSON(await accKey(),{v:1,t:Date.now(),docs:accDocs()})); ACC.last=Date.now(); localStorage.setItem('forge.acct',JSON.stringify(ACC)); setSync(true); accBusy=false; return true; }
   catch(e){ setSync(false); clearTimeout(accT); accT=setTimeout(accPush,30000); }
-  accBusy=false; }
+  accBusy=false; return false; }
 async function accPull(force){ if(!ACC||accBusy) return; if(!force&&Date.now()-accLastPull<20000) return; accLastPull=Date.now(); accBusy=true;
   let res=null; try{ const txt=await kvGet(ACC.id); if(txt){ const o=await decJSON(await accKey(),txt); res=accApply(o.docs); } else res={changed:false,localNewer:true}; setSync(true); }
   catch(e){ setSync(false); }
@@ -1155,9 +1163,9 @@ const norm=s=>s.toLowerCase().replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/
 const WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
 const dayLabel=k=>{const t=today(); if(k===t) return 'Heute'; const y=new Date(); y.setDate(y.getDate()-1); if(k===dkey(y)) return 'Gestern'; const d=parseKey(k); return WD[d.getDay()]+', '+d.getDate()+'.'+(d.getMonth()+1)+'.'};
 const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
-const hhmm=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+' h '+m+' min':m+' min'};
+const hhmm=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+' h '+m+' min':m?m+' min':s+' s'};
 function toast(t,undo){const el=$('#toast'); if(!undo) UNDO=null; if(!undo&&/eingetragen|gespeichert|hinzugefügt|Einträge|kcal|aktiviert|übernommen|kopiert|Favorit|Wiederhergestellt|gelöscht|entfernt/i.test(t)) return; el.innerHTML=esc(t)+(undo?' <button data-act="undo" class="t-undo">Rückgängig</button>':''); el.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>{el.classList.remove('on'); if(undo) UNDO=null;},undo?5000:2200)}
-const I={mic:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',send:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+const I={up:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"/><path d="M4 9l8-2 8 2M12 7v7M8 21l4-7 4 7" opacity=".35"/><path d="M4 9l8-2 8 2M12 7v7"/></svg>',low:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"/><path d="M4 9l8-2 8 2M12 7v7" opacity=".35"/><path d="M12 14l-4 7M12 14l4 7"/></svg>',mic:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',send:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
   scan:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 9v6M10 9v6M13 9v6M17 9v6"/></svg>',
  plus:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
  check:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
@@ -1507,14 +1515,14 @@ function openCexForm(from,id){ const e=id&&(S.cex||[]).find(x=>x.id===id); CX=e?
 function drawCexForm(){ const sh=$('#sheet-root .sheet'); if(!sh) return;
   const num=(id,l,v,ph,mode)=>`<div class="field"><label>${l}</label><input class="inp" id="${id}" type="number" inputmode="${mode}" placeholder="${ph}" value="${v}" data-in="cx-f" data-f="${id.slice(3)}"></div>`;
   sh.innerHTML=`<div class="grab"></div><div class="sheet-h"><h2>${CX.id?'Übung bearbeiten':'Eigene Übung'}</h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
-  <div class="field"><label>Bereich</label><div class="grid2">${['Oberkörper','Unterkörper'].map(g=>`<button class="chip ${CX.g===g?'on-lime':''}" style="height:48px;justify-content:center;font-size:15px" data-act="cx-set" data-f="g" data-v="${g}">${g==='Oberkörper'?'':''} ${g}</button>`).join('')}</div></div>
+  <div class="field"><label>Bereich</label><div class="grid2">${['Oberkörper','Unterkörper'].map(g=>`<button class="chip ${CX.g===g?'on-lime':''}" style="height:48px;justify-content:center;font-size:15px" data-act="cx-set" data-f="g" data-v="${g}">${g==='Oberkörper'?I.up:I.low} ${g}</button>`).join('')}</div></div>
   <div class="field"><label>Name</label><input class="inp" id="cx-n" placeholder="z. B. Hip Thrust Maschine" value="${esc(CX.n)}" data-in="cx-f" data-f="n" autocomplete="off"></div>
   <div class="grid3">${num('cx-kg','Gewicht kg',CX.kg,'0 = ohne','decimal')}${num('cx-sets','Sätze',CX.sets,'3','numeric')}${num('cx-reps','Wdh.',CX.reps,'10','numeric')}</div>
   <button class="btn lime block" style="margin-top:14px" data-act="cx-save">${CX.from==='picker'?'Speichern & hinzufügen':'Speichern'}</button>
   ${CX.id?`<button class="btn ghost block" style="margin-top:8px;color:var(--red)" data-act="cx-del" data-id="${CX.id}">Übung löschen</button>`:CX.from==='picker'?`<button class="btn ghost block" style="margin-top:8px" data-act="cx-back">Zurück</button>`:''}`; }
 function cexCard(){ const L=S.cex||[]; return `<div class="card" style="margin-top:12px;padding:16px">
   <div class="between"><b style="font-size:14px">Meine Übungen</b><button class="link" style="padding:0" data-act="cx-open">${I.plus} Neue Übung</button></div>
-  ${L.length?`<div class="list" style="margin-top:6px">${L.map(e=>`<button class="li" data-act="cx-edit" data-id="${e.id}"><span class="av" style="color:var(--lime)">${e.g==='Unterkörper'?'':e.g==='Oberkörper'?'':I.dumb}</span><span class="m"><b>${esc(e.n)}</b><small>${e.g} · ${cexLabel(e)}</small></span><span class="r dim">›</span></button>`).join('')}</div>`:`<p class="hint" style="margin:8px 0 0">Leg deine eigenen Übungen mit Gewicht, Sätzen und Wiederholungen an – sie stehen dann in jedem Training bereit.</p>`}
+  ${L.length?`<div class="list" style="margin-top:6px">${L.map(e=>`<button class="li" data-act="cx-edit" data-id="${e.id}"><span class="av" style="color:var(--lime)">${e.g==='Unterkörper'?I.low:e.g==='Oberkörper'?I.up:I.dumb}</span><span class="m"><b>${esc(e.n)}</b><small>${e.g} · ${cexLabel(e)}</small></span><span class="r dim">›</span></button>`).join('')}</div>`:`<p class="hint" style="margin:8px 0 0">Leg deine eigenen Übungen mit Gewicht, Sätzen und Wiederholungen an – sie stehen dann in jedem Training bereit.</p>`}
 </div>`; }
 function drawPicker(){ const sh=$('#sheet-root .sheet'); if(!sh) return; const nq=norm(PICK.q);
   const list=Object.values(EX).filter(e=>(PICK.g==='Alle'||e.g===PICK.g)&&(!nq||norm(e.n).includes(nq)));
@@ -2021,15 +2029,15 @@ const A={
     else s.done=false;
     touch('profile'); renderActive(); },
   'w-cancel':()=>{ stopRest(); clearInterval(ticker); undoable(['profile'],()=>{S.active=null},'Training verworfen'); const u=UNDO; if(u) UNDO=()=>{u(); startTicker();}; },
-  'w-finish':()=>{ const Ac=S.active; const done=Ac.ex.map(e=>({eid:e.eid,target:e.target||null,sets:e.sets.filter(s=>s.done)})).filter(e=>e.sets.length);
+  'w-finish':()=>{ stopRest(); const Ac=S.active; const done=Ac.ex.map(e=>({eid:e.eid,target:e.target||null,sets:e.sets.filter(s=>s.done)})).filter(e=>e.sets.length);
     if(!done.length){ toast('Hake mindestens einen Satz ab ✓'); return; }
     const k=sum(done,e=>exKcal(e)), v=sum(done,e=>exVol(e)), n=sum(done,e=>e.sets.length), dur=(Date.now()-Ac.start)/1000;
     const isBase=!!findTpl(Ac.tpl);
     openSheet(`<div class="sheet-h"><h2>Starke Leistung </h2><button class="x" data-act="close-sheet" aria-label="Schließen">${I.x}</button></div>
       <div class="stats3"><div class="stat"><div class="v num">${hhmm(dur)}</div><small>Dauer</small></div><div class="stat"><div class="v num" style="color:var(--lime)">${fmt(k)}</div><small>kcal aktiv</small></div><div class="stat"><div class="v num">${fmt(v)}</div><small>kg Volumen</small></div></div>
       <div class="info" style="margin-top:12px">${done.map(e=>`<b>${esc(EX[e.eid].n)}</b> · ${e.sets.length} ${EX[e.eid].t==='cardio'?'× '+sum(e.sets,s=>+s.min)+' min':'Sätze'}`).join('<br>')}</div>
-      ${!isBase?`<label class="row" style="margin:14px 0 4px;font-weight:700;font-size:14px"><input type="checkbox" id="save-tpl" style="width:20px;height:20px;accent-color:#FF6B59"> Als Vorlage „${esc(Ac.name)}“ speichern</label>`:''}
-      <button class="btn lime block" style="margin-top:14px" id="fin-ok">Training speichern</button>`);
+      ${!isBase?`<label class="row" style="margin:16px 0 6px;min-height:44px;gap:10px;font-weight:700;font-size:14px"><input type="checkbox" id="save-tpl" style="width:20px;height:20px;accent-color:#FF6B59"> Als Vorlage „${esc(Ac.name)}“ speichern</label>`:''}
+      <button class="btn lime block" style="margin-top:18px" id="fin-ok">Training speichern</button>`);
     $('#fin-ok').onclick=()=>{ const tk=today(); ensureDay(tk).workouts.push({id:Ac.id,name:Ac.name,start:Ac.start,end:Date.now(),dur,kcal:r0(k),vol:r0(v),sets:n,ex:done});
       if($('#save-tpl')?.checked) S.templates.push({id:'t'+rid(),n:Ac.name,ex:done.map(e=>({eid:e.eid,sets:workSets(e.sets).length||e.sets.length,lo:e.target?.lo||8,hi:e.target?.hi||12}))});
       S.active=null; stopRest(); clearInterval(ticker); touch('d'+tk); touch('profile'); closeSheet(); renderGym(); toast(`Gespeichert · ${fmt(k)} kcal verbrannt `); };
@@ -2190,10 +2198,10 @@ Object.assign(A,{'scan':()=>openScanner(),
     try{ const d=await accDerive(n,pw); const txt=await kvGet(d.id);
       const finish=async(create)=>{ ACC={n,id:d.id,k:d.raw,last:0}; ACC_KEY=d.key; localStorage.setItem('forge.acct',JSON.stringify(ACC));
         if(!create){ const o=await decJSON(d.key,txt); const r=accApply(o.docs); saveLocal(); if(r.localNewer) await accPush(); else { ACC.last=Date.now(); localStorage.setItem('forge.acct',JSON.stringify(ACC)); setSync(true); } accNameFix(n); }
-        else { accNameFix(n); await accPush(); }
-        closeWelcome(); closeSheet(); renderAll(); if(S.active) startTicker(); toast(create?'Konto erstellt':'Angemeldet · Daten geladen'); };
+        else { accNameFix(n); var pushed=await accPush(); }
+        closeWelcome(); closeSheet(); renderAll(); if(S.active) startTicker(); toast(create?(pushed?'Konto erstellt':'Konto erstellt · Sync folgt, sobald Verbindung da ist'):'Angemeldet · Daten geladen'); };
       if(txt) await finish(false);
-      else confirmSheet('Neues Konto erstellen?',`Unter „${esc(n)}“ mit diesem Passwort gibt es noch kein Konto. Falls du dich vertippt hast, geh zurück. Merk dir dein Passwort gut – es kann nicht zurückgesetzt werden.`,'Erstellen',()=>finish(true).catch(()=>toast('Keine Verbindung – später nochmal versuchen')),false);
+      else confirmSheet('Neues Konto erstellen?',`Unter „${esc(n)}“ mit diesem Passwort gibt es noch kein Konto. Falls du dich vertippt hast, geh zurück. Merk dir dein Passwort gut – es kann nicht zurückgesetzt werden.`,'Erstellen',()=>finish(true).catch(()=>toast('Konto konnte nicht erstellt werden – nochmal versuchen')),false);
     }catch(e){ el.disabled=false; el.textContent='Anmelden / Konto erstellen'; toast(e&&e.code==='net'?'Keine Verbindung zum Speicher':'Anmeldung fehlgeschlagen'); } },
   'welcome-skip':()=>{ try{localStorage.setItem('forge.skipLogin','1')}catch(e){} closeWelcome(); },
   'acc-sync':async el=>{ el.textContent='Synchronisiere …'; await accPull(true); if(accT){ clearTimeout(accT); await accPush(); } if($('#sheet-root .sheet.pf')) pfRender(pfPageHtml('konto'),''); toast(ACC&&ACC.last?'Synchronisiert':'Keine Verbindung'); },
